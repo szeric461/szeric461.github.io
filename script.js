@@ -59,6 +59,7 @@ document.getElementById('backToMenuBtn').addEventListener('click', () => {
 document.getElementById('backToMenuBtnGameOver').addEventListener('click', () => {
     showMenu();
 });
+
 document.getElementById('adminBtn').addEventListener('click', () => {
     document.getElementById('menu').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'flex';
@@ -102,10 +103,14 @@ function startGame() {
         document.getElementById('player2Score').style.display = 'block';
         document.getElementById('player2ColorLabel').style.display = 'block';
         document.getElementById('snakeColor2').style.display = 'block';
+        document.getElementById('multiPlayerControls').style.display = 'block';
+        document.getElementById('singlePlayerControls').style.display = 'none';
     } else {
         document.getElementById('player2Score').style.display = 'none';
         document.getElementById('player2ColorLabel').style.display = 'none';
         document.getElementById('snakeColor2').style.display = 'none';
+        document.getElementById('singlePlayerControls').style.display = 'block';
+        document.getElementById('multiPlayerControls').style.display = 'none';
     }
     canvas.width = canvas.height = gridSize * tileCount;
     gameOver = false;
@@ -134,6 +139,8 @@ function showMenu() {
     document.getElementById('skinSelector').style.display = 'none';
     document.getElementById('gameCanvas').style.display = 'none';
     document.getElementById('gameOver').style.display = 'none';
+    document.getElementById('singlePlayerControls').style.display = 'none';
+    document.getElementById('multiPlayerControls').style.display = 'none';
     resetGame();
     loadScores();
 }
@@ -248,6 +255,8 @@ function endGame() {
     document.getElementById('gameCanvas').style.display = 'none';
     document.getElementById('skinSelector').style.display = 'none';
     document.getElementById('backToMenuBtn').style.display = 'none'; // Eltünteti a menü gombot
+    document.getElementById('singlePlayerControls').style.display = 'none';
+    document.getElementById('multiPlayerControls').style.display = 'none';
     saveScore(playerName, score1);
 }
 
@@ -280,6 +289,7 @@ function loadScores() {
         scoreTableBody.appendChild(row);
     });
 }
+
 document.addEventListener('keydown', event => {
     switch (event.key) {
         case 'ArrowUp':
