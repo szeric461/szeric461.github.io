@@ -216,6 +216,7 @@ function drawSpecialFood() {
         ctx.fillRect(specialFood.x * gridSize, specialFood.y * gridSize, gridSize, gridSize);
     }
 }
+
 function placeFood() {
     food.x = Math.floor(Math.random() * tileCount);
     food.y = Math.floor(Math.random() * tileCount);
@@ -226,7 +227,6 @@ function placeFood() {
         };
     }
 }
-
 function checkCollision(snake) {
     for (let i = 4; i < snake.length; i++) {
         if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
@@ -338,7 +338,7 @@ function handleTouchMove(evt) {
     const xUp = evt.touches[0].clientX;
     const yUp = evt.touches[0].clientY;
 
-    const xDiff = xDown - xUp;
+    xDiff = xDown - xUp;
     const yDiff = yDown - yUp;
 
     if (Math.abs(xDiff) > Math.abs(yDiff)) {
