@@ -216,7 +216,6 @@ function drawSpecialFood() {
         ctx.fillRect(specialFood.x * gridSize, specialFood.y * gridSize, gridSize, gridSize);
     }
 }
-
 function placeFood() {
     food.x = Math.floor(Math.random() * tileCount);
     food.y = Math.floor(Math.random() * tileCount);
@@ -318,6 +317,47 @@ document.addEventListener('keydown', event => {
             break;
     }
 });
+
+canvas.addEventListener('touchstart', handleTouchStart, false);
+canvas.addEventListener('touchmove', handleTouchMove, false);
+
+let xDown = null;
+let yDown = null;
+
+function handleTouchStart(evt) {
+    const firstTouch = evt.touches[0];
+    xDown = firstTouch.clientX;
+    yDown = firstTouch.clientY;
+}
+
+function handleTouchMove(evt) {
+    if (!xDown || !yDown) {
+        return;
+    }
+
+    const xUp = evt.touches[0].clientX;
+    const yUp = evt.touches[0].clientY;
+
+    const xDiff = xDown - xUp;
+    const yDiff = yDown - yUp;
+
+    if (Math.abs(xDiff) > Math.abs(yDiff)) {
+        if (xDiff > 0) {
+            if (dx1 === 0) { dx1 = -1; dy1 = 0; }
+        } else {
+            if (dx1 === 0) { dx1 = 1; dy1 = 0; }
+        }
+    } else {
+        if (yDiff > 0) {
+            if (dy1 === 0) { dx1 = 0; dy1 = -1; }
+        } else {
+            if (dy1 === 0) { dx1 = 0; dy1 = 1; }
+        }
+    }
+
+    xDown = null;
+    yDown = null;
+}
 
 canvas.width = canvas.height = gridSize * tileCount;
 loadScores();

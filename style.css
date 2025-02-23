@@ -122,3 +122,21 @@ canvas {
 #scoreTable th {
     background-color: #20232a;
 }
+
+@media (max-width: 600px) {
+    #menu, #adminPanel, #scoreBoard, #skinSelector, #gameOver {
+        padding: 5px;
+    }
+
+    h1, h2, p, label, input, button {
+        font-size: 1em;
+    }
+
+    table {
+        width: 100%;
+    }
+
+    th, td {
+        padding: 5px;
+    }
+}
