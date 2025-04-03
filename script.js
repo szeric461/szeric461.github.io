@@ -220,7 +220,7 @@ function drawSpecialFood() {
 function placeFood() {
     food.x = Math.floor(Math.random() * tileCount);
     food.y = Math.floor(Math.random() * tileCount);
-    if (Math.random() < 0.1) { // 10% esély a speciális étel megjelenésére
+    if (Math.random() < 0.3) { // 30% esély a speciális étel megjelenésére
         specialFood = {
             x: Math.floor(Math.random() * tileCount),
             y: Math.floor(Math.random() * tileCount)
