@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Játék</title>
+    <style>
+        /* --- CSS STÍLUSOK --- */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #282c34;
+            color: #61dafb;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        #menu, #gameOver, #adminPanel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 { margin: 0; font-size: 2em; }
+        p { margin: 0; font-size: 1.2em; }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #61dafb;
+            color: #20232a;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        button:hover {
+            background-color: #21a1f1;
+            transform: scale(1.1);
+        }
+
+        input[type="text"], input[type="password"] {
+            padding: 10px;
+            border: 2px solid #61dafb;
+            border-radius: 5px;
+            background-color: #20232a;
+            color: #61dafb;
+            font-size: 16px;
+        }
+
+        #scoreBoard {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #20232a;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #skinSelector { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+
+        canvas {
+            border: 2px solid #61dafb;
+            background-color: #000;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            max-width: 90vw;
+            max-height: 70vh;
+        }
+
+        #scoreTable { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        #scoreTable th, #scoreTable td { border: 1px solid #61dafb; padding: 8px; text-align: center; }
+        #scoreTable th { background-color: #20232a; }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5em; }
+            #scoreBoard { flex-direction: column; width: 90%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="menu">
+        <h1>Üdvözöllek a Snake játékban!</h1>
+        <p>Készítette: Szentpáli Richárd</p>
+        <label for="playerName">Add meg a neved:</label>
+        <input type="text" id="playerName" placeholder="Név">
+        <button id="singlePlayerBtn">Egyjátékos mód</button>
+        <button id="multiPlayerBtn">Kétjátékos mód</button>
+        <button id="adminBtn">Admin felület</button>
+        <h2>Pontszámok</h2>
+        <table id="scoreTable">
+            <thead>
+                <tr><th>Név</th><th>Pontszám</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="adminPanel" style="display: none;">
+        <h2>Admin Panel</h2>
+        <input type="password" id="adminPassword" placeholder="Jelszó">
+        <button id="loginBtn">Bejelentkezés</button>
+        <button id="resetScoresBtn" style="display: none;">Pontszámok törlése</button>
+        <button id="logoutBtn" style="display: none;">Kijelentkezés</button>
+    </div>
+
+    <div id="scoreBoard" style="display: none;">
+        <p>1. Játékos: <span id="score1">0</span></p>
+        <p id="player2Score" style="display: none;">2. Játékos: <span id="score2">0</span></p>
+        <p>Rekord: <span id="highScore">0</span></p>
+        <button id="backToMenuBtn">Menü</button>
+    </div>
+
+    <div id="skinSelector" style="display: none;">
+        <label>Szín 1:</label>
+        <select id="snakeColor1">
+            <option value="lime">Zöld</option>
+            <option value="blue">Kék</option>
+            <option value="red">Piros</option>
+            <option value="yellow">Sárga</option>
+        </select>
+        <label id="player2ColorLabel" style="display: none;">Szín 2:</label>
+        <select id="snakeColor2" style="display: none;">
+            <option value="blue">Kék</option>
+            <option value="lime">Zöld</option>
+            <option value="red">Piros</option>
+            <option value="yellow">Sárga</option>
+        </select>
+    </div>
+
+    <canvas id="gameCanvas" style="display: none; touch-action: none;"></canvas>
+
+    <div id="gameOver" style="display: none;">
+        <p>Meghaltál! 😢</p>
+        <button id="restartBtn">Új játék</button>
+        <button id="backToMenuBtnGameOver">Vissza a menübe</button>
+    </div>
+
+    <div id="singlePlayerControls" style="display: none; margin-top: 10px;">
+        <p>Irányítás: Nyilak</p>
+    </div>
+    <div id="multiPlayerControls" style="display: none; margin-top: 10px;">
+        <p>P1: Nyilak | P2: W,A,S,D</p>
+    </div>
+
+    <script>
+        /* --- JAVASCRIPT LOGIKA --- */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const gridSize = 20;
+        const tileCount = 20;
+        let snake1 = [{ x: 10, y: 10 }];
+        let snake2 = [{ x: 5, y: 5 }];
+        let food = { x: 15, y: 15 };
+        let specialFood = null;
+        let dx1 = 0, dy1 = 0;
+        let dx2 = 0, dy2 = 0;
+        let score1 = 0, score2 = 0;
+        let highScore = localStorage.getItem('highScore') || 0;
+        let snakeColor1 = 'lime';
+        let snakeColor2 = 'blue';
+        let isSinglePlayer = true;
+        let isGameOver = false;
+        let playerName = '';
+
+        document.getElementById('highScore').innerText = highScore;
+
+        // Eseménykezelők
+        document.getElementById('snakeColor1').addEventListener('change', (e) => snakeColor1 = e.target.value);
+        document.getElementById('snakeColor2').addEventListener('change', (e) => snakeColor2 = e.target.value);
+
+        document.getElementById('singlePlayerBtn').addEventListener('click', () => {
+            playerName = document.getElementById('playerName').value || "Vendég";
+            isSinglePlayer = true;
+            startGame();
+        });
+
+        document.getElementById('multiPlayerBtn').addEventListener('click', () => {
+            playerName = document.getElementById('playerName').value || "Vendég";
+            isSinglePlayer = false;
+            startGame();
+        });
+
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        document.getElementById('backToMenuBtn').addEventListener('click', showMenu);
+        document.getElementById('backToMenuBtnGameOver').addEventListener('click', showMenu);
+        
+        document.getElementById('adminBtn').addEventListener('click', () => {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'flex';
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            if (document.getElementById('adminPassword').value === 'asd123') {
+                document.getElementById('resetScoresBtn').style.display = 'block';
+                document.getElementById('logoutBtn').style.display = 'block';
+                document.getElementById('loginBtn').style.display = 'none';
+                document.getElementById('adminPassword').style.display = 'none';
+            } else { alert('Hibás jelszó!'); }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('menu').style.display = 'flex';
+        });
+
+        document.getElementById('resetScoresBtn').addEventListener('click', () => {
+            localStorage.removeItem('scores');
+            loadScores();
+            alert('Pontszámok törölve!');
+        });
+
+        function startGame() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('scoreBoard').style.display = 'flex';
+            document.getElementById('skinSelector').style.display = 'flex';
+            document.getElementById('gameCanvas').style.display = 'block';
+            
+            if (!isSinglePlayer) {
+                document.getElementById('player2Score').style.display = 'block';
+                document.getElementById('player2ColorLabel').style.display = 'block';
+                document.getElementById('snakeColor2').style.display = 'block';
+                document.getElementById('multiPlayerControls').style.display = 'block';
+                document.getElementById('singlePlayerControls').style.display = 'none';
+            } else {
+                document.getElementById('player2Score').style.display = 'none';
+                document.getElementById('player2ColorLabel').style.display = 'none';
+                document.getElementById('snakeColor2').style.display = 'none';
+                document.getElementById('singlePlayerControls').style.display = 'block';
+                document.getElementById('multiPlayerControls').style.display = 'none';
+            }
+
+            canvas.width = canvas.height = gridSize * tileCount;
+            isGameOver = false;
+            resetGame();
+            requestAnimationFrame(drawGame);
+        }
+
+        function resetGame() {
+            snake1 = [{ x: 10, y: 10 }];
+            snake2 = [{ x: 5, y: 5 }];
+            dx1 = 0; dy1 = 0; dx2 = 0; dy2 = 0;
+            score1 = 0; score2 = 0;
+            document.getElementById('score1').innerText = score1;
+            document.getElementById('score2').innerText = score2;
+            placeFood();
+        }
+
+        function showMenu() {
+            location.reload(); // Egyszerűbb reset az iframe-es környezethez
+        }
+
+        let lastTime = 0;
+        function drawGame(time) {
+            if (isGameOver) return;
+            
+            if (time - lastTime > 100) {
+                lastTime = time;
+                updateLogic();
+                renderGraphics();
+            }
+            requestAnimationFrame(drawGame);
+        }
+
+        function updateLogic() {
+            if (dx1 === 0 && dy1 === 0 && dx2 === 0 && dy2 === 0) return;
+
+            moveSnake(snake1, dx1, dy1, 'score1');
+            if (!isSinglePlayer) moveSnake(snake2, dx2, dy2, 'score2');
+
+            if (checkCollision(snake1) || (!isSinglePlayer && checkCollision(snake2))) {
+                endGame();
+            }
+        }
+
+        function moveSnake(snake, dx, dy, scoreId) {
+            if (dx === 0 && dy === 0) return;
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                if (scoreId === 'score1') { score1++; document.getElementById('score1').innerText = score1; }
+                else { score2++; document.getElementById('score2').innerText = score2; }
+                placeFood();
+                updateHighScore();
+            } else if (specialFood && head.x === specialFood.x && head.y === specialFood.y) {
+                if (scoreId === 'score1') { score1 += 5; document.getElementById('score1').innerText = score1; }
+                else { score2 += 5; document.getElementById('score2').innerText = score2; }
+                specialFood = null;
+                updateHighScore();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function renderGraphics() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Food
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+            if (specialFood) {
+                ctx.fillStyle = 'gold';
+                ctx.fillRect(specialFood.x * gridSize, specialFood.y * gridSize, gridSize - 2, gridSize - 2);
+            }
+
+            // Snakes
+            drawSnakePart(snake1, snakeColor1);
+            if (!isSinglePlayer) drawSnakePart(snake2, snakeColor2);
+        }
+
+        function drawSnakePart(snake, color) {
+            ctx.fillStyle = color;
+            snake.forEach(part => ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize - 2, gridSize - 2));
+        }
+
+        function placeFood() {
+            food = { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) };
+            specialFood = Math.random() < 0.2 ? { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) } : null;
+        }
+
+        function checkCollision(snake) {
+            const head = snake[0];
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) return true;
+            for (let i = 1; i < snake.length; i++) {
+                if (snake[i].x === head.x && snake[i].y === head.y) return true;
+            }
+            return false;
+        }
+
+        function updateHighScore() {
+            const currentMax = Math.max(score1, score2);
+            if (currentMax > highScore) {
+                highScore = currentMax;
+                localStorage.setItem('highScore', highScore);
+                document.getElementById('highScore').innerText = highScore;
+            }
+        }
+
+        function endGame() {
+            isGameOver = true;
+            document.getElementById('gameOver').style.display = 'flex';
+            document.getElementById('gameCanvas').style.display = 'none';
+            saveScore(playerName, score1);
+        }
+
+        function saveScore(name, score) {
+            let scores = JSON.parse(localStorage.getItem('scores')) || [];
+            scores.push({ name, score });
+            scores.sort((a, b) => b.score - a.score);
+            localStorage.setItem('scores', JSON.stringify(scores.slice(0, 10)));
+            loadScores();
+        }
+
+        function loadScores() {
+            let scores = JSON.parse(localStorage.getItem('scores')) || [];
+            const tbody = document.querySelector('#scoreTable tbody');
+            tbody.innerHTML = scores.map(s => `<tr><td>${s.name}</td><td>${s.score}</td></tr>`).join('');
+        }
+
+        // Irányítás
+        window.addEventListener('keydown', e => {
+            switch (e.key) {
+                case 'ArrowUp': if (dy1 === 0) { dx1 = 0; dy1 = -1; } break;
+                case 'ArrowDown': if (dy1 === 0) { dx1 = 0; dy1 = 1; } break;
+                case 'ArrowLeft': if (dx1 === 0) { dx1 = -1; dy1 = 0; } break;
+                case 'ArrowRight': if (dx1 === 0) { dx1 = 1; dy1 = 0; } break;
+                case 'w': if (dy2 === 0) { dx2 = 0; dy2 = -1; } break;
+                case 's': if (dy2 === 0) { dx2 = 0; dy2 = 1; } break;
+                case 'a': if (dx2 === 0) { dx2 = -1; dy2 = 0; } break;
+                case 'd': if (dx2 === 0) { dx2 = 1; dy2 = 0; } break;
+            }
+        });
+
+        loadScores();
+    </script>
+</body>
+</html>
