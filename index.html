@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Játék birodalom</title>
+    <title>Játék Birodalom</title>
     <style>
-        /* Modern, sötét háttér a választónak */
         body {
             margin: 0;
             padding: 0;
@@ -18,24 +17,25 @@
             overflow: hidden;
         }
 
-        /* Menüsor felül */
+        /* Menüsor kiegészítve az új játékhoz */
         .game-selector {
             background: #2d2d2d;
             padding: 15px;
             display: flex;
             justify-content: center;
-            gap: 20px;
+            flex-wrap: wrap; /* Mobilbarát: ha sok gomb van, több sorba rendezi */
+            gap: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             z-index: 100;
         }
 
         button {
-            padding: 12px 25px;
-            font-size: 16px;
+            padding: 10px 20px;
+            font-size: 15px;
             font-weight: bold;
             cursor: pointer;
             border: none;
-            border-radius: 50px;
+            border-radius: 8px;
             background: #444;
             color: #ccc;
             transition: all 0.3s ease;
@@ -47,14 +47,12 @@
             transform: translateY(-2px);
         }
 
-        /* Amikor a gomb aktív (azt a játékot látjuk) */
         button.active {
             background: #61dafb;
             color: #20232a;
             box-shadow: 0 0 15px rgba(97, 218, 251, 0.5);
         }
 
-        /* A játék tartálya */
         .game-viewport {
             flex-grow: 1;
             width: 100%;
@@ -71,26 +69,27 @@
 <body>
 
     <div class="game-selector">
-        <button id="btn-snake" onclick="loadGame('snake.html', 'btn-snake')">🐍 Snake Játék</button>
+        <button id="btn-snake" onclick="loadGame('snake.html', 'btn-snake')">🐍 Snake</button>
         <button id="btn-dots" onclick="loadGame('pontok.html', 'btn-dots')">📍 Pontösszekötő</button>
+        <button id="btn-tuning" onclick="loadGame('autotuning.html', 'btn-tuning')">🚗 AutoTuning</button>
     </div>
 
     <iframe id="game-frame" src="snake.html" class="game-viewport"></iframe>
 
     <script>
         function loadGame(url, btnId) {
-            // 1. Frissítjük az iframe forrását
+            // Játék betöltése az iframe-be
             document.getElementById('game-frame').src = url;
 
-            // 2. Levesszük az 'active' osztályt minden gombról
+            // Gombok stílusának frissítése
             const buttons = document.querySelectorAll('.game-selector button');
             buttons.forEach(btn => btn.classList.remove('active'));
 
-            // 3. Rátesszük az 'active' osztályt a kattintott gombra
+            // Az éppen kiválasztott gomb kiemelése
             document.getElementById(btnId).classList.add('active');
         }
 
-        // Alapértelmezett gomb beállítása betöltéskor
+        // Alapértelmezett indítás
         window.onload = () => {
             document.getElementById('btn-snake').classList.add('active');
         }
