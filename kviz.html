@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Szakmasztár Kvíz</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── KATEGÓRIA VÁLASZTÓ ── */
+        #category-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        #category-screen h1 {
+            font-size: 2em;
+            color: #61dafb;
+            text-align: center;
+        }
+
+        #category-screen p {
+            color: #aaa;
+            text-align: center;
+        }
+
+        .cat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .cat-card {
+            background: #16213e;
+            border: 2px solid #0f3460;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.25s;
+        }
+
+        .cat-card:hover {
+            border-color: #61dafb;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(97,218,251,0.2);
+        }
+
+        .cat-card .icon { font-size: 2em; margin-bottom: 8px; }
+        .cat-card .title { font-weight: bold; font-size: 1em; color: #61dafb; }
+        .cat-card .subtitle { font-size: 0.8em; color: #888; margin-top: 4px; }
+
+        /* ── KVÍZ KÉPERNYŐ ── */
+        #quiz-screen {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .quiz-header {
+            background: #16213e;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border-bottom: 2px solid #0f3460;
+            flex-wrap: wrap;
+        }
+
+        .quiz-header .cat-name {
+            color: #61dafb;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .progress-bar-wrap {
+            flex: 1;
+            min-width: 100px;
+            max-width: 300px;
+            background: #0f3460;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background: #61dafb;
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.4s;
+        }
+
+        .quiz-header .score-display {
+            font-size: 0.85em;
+            color: #aaa;
+            white-space: nowrap;
+        }
+
+        .btn-back-quiz {
+            background: #444;
+            color: #ccc;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+        .btn-back-quiz:hover { background: #666; }
+
+        /* ── KÉRDÉS TARTALOM ── */
+        .quiz-body {
+            flex: 1;
+            padding: 30px 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .question-num {
+            color: #61dafb;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            font-weight: bold;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .multi-hint {
+            font-size: 0.8em;
+            color: #f0c070;
+            margin-bottom: 12px;
+            padding: 6px 12px;
+            background: rgba(240,192,112,0.1);
+            border-radius: 6px;
+            border-left: 3px solid #f0c070;
+        }
+
+        .answers {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .answer-btn {
+            background: #16213e;
+            border: 2px solid #0f3460;
+            color: #eee;
+            border-radius: 10px;
+            padding: 14px 18px;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.95em;
+            line-height: 1.4;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .answer-btn:hover:not(:disabled) {
+            border-color: #61dafb;
+            background: #1d2f5e;
+        }
+
+        .answer-btn.selected {
+            border-color: #61dafb;
+            background: #1d2f5e;
+        }
+
+        .answer-btn.correct {
+            border-color: #4caf50;
+            background: rgba(76,175,80,0.15);
+        }
+
+        .answer-btn.wrong {
+            border-color: #f44336;
+            background: rgba(244,67,54,0.15);
+        }
+
+        .answer-btn:disabled { cursor: default; }
+
+        /* Matching questions */
+        .matching-wrap {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .match-col {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .match-col h4 {
+            color: #61dafb;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .match-item {
+            background: #16213e;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .match-select {
+            background: #0f3460;
+            border: 1px solid #61dafb;
+            color: #eee;
+            border-radius: 6px;
+            padding: 4px 8px;
+            margin-top: 6px;
+            width: 100%;
+            font-size: 0.9em;
+        }
+
+        /* Quiz footer */
+        .quiz-footer {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            border-top: 1px solid #0f3460;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: #61dafb;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 28px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover { background: #21a1f1; }
+        .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+        .feedback-msg {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 14px;
+        }
+        .feedback-msg.ok { background: rgba(76,175,80,0.2); color: #81c784; }
+        .feedback-msg.fail { background: rgba(244,67,54,0.2); color: #e57373; }
+
+        /* ── EREDMÉNY ── */
+        #result-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 40px 20px;
+            text-align: center;
+            gap: 20px;
+        }
+
+        #result-screen .emoji { font-size: 4em; }
+        #result-screen h2 { color: #61dafb; font-size: 2em; }
+        #result-screen .score-big { font-size: 3em; font-weight: bold; }
+        #result-screen .score-sub { color: #aaa; font-size: 1em; }
+
+        .result-bar-wrap {
+            width: 100%;
+            max-width: 400px;
+            background: #0f3460;
+            border-radius: 20px;
+            height: 20px;
+            overflow: hidden;
+        }
+        .result-bar {
+            background: linear-gradient(90deg, #61dafb, #4caf50);
+            height: 100%;
+            border-radius: 20px;
+            transition: width 1s;
+        }
+
+        .result-btns {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-secondary {
+            background: #16213e;
+            color: #61dafb;
+            border: 2px solid #61dafb;
+            border-radius: 8px;
+            padding: 10px 22px;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #1d2f5e; }
+    </style>
+</head>
+<body>
+
+<!-- ── KATEGÓRIA KÉPERNYŐ ── -->
+<div id="category-screen">
+    <h1>📚 Szakmasztár Kvíz</h1>
+    <p>Válassz témakört és teszteld a tudásod!</p>
+    <div class="cat-grid">
+        <div class="cat-card" onclick="startQuiz(0)">
+            <div class="icon">💻</div>
+            <div class="title">I. IT Alapismeretek</div>
+            <div class="subtitle">25 kérdés · 60 pont</div>
+        </div>
+        <div class="cat-card" onclick="startQuiz(1)">
+            <div class="icon">🌐</div>
+            <div class="title">II. Frontend programozás</div>
+            <div class="subtitle">30 kérdés · 90 pont</div>
+        </div>
+        <div class="cat-card" onclick="startQuiz(2)">
+            <div class="icon">🗄️</div>
+            <div class="title">III. Backend programozás</div>
+            <div class="subtitle">30 kérdés · 90 pont</div>
+        </div>
+        <div class="cat-card" onclick="startQuiz(3)">
+            <div class="icon">🔧</div>
+            <div class="title">IV. Szoftverfejlesztés &amp; tesztelés</div>
+            <div class="subtitle">23 kérdés · 60 pont</div>
+        </div>
+        <div class="cat-card" onclick="startQuiz(4)" style="border-color:#f0c070">
+            <div class="icon">⭐</div>
+            <div class="title" style="color:#f0c070">Összes témakör</div>
+            <div class="subtitle">108 kérdés · 300 pont</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── KVÍZ KÉPERNYŐ ── -->
+<div id="quiz-screen">
+    <div class="quiz-header">
+        <button class="btn-back-quiz" onclick="goBack()">← Vissza</button>
+        <span class="cat-name" id="cat-label"></span>
+        <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <span class="score-display" id="score-display"></span>
+    </div>
+    <div class="quiz-body" id="quiz-body"></div>
+    <div class="quiz-footer">
+        <button class="btn-primary" id="btn-check" onclick="checkAnswer()">Ellenőrzés</button>
+        <button class="btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Következő →</button>
+    </div>
+</div>
+
+<!-- ── EREDMÉNY KÉPERNYŐ ── -->
+<div id="result-screen">
+    <div class="emoji" id="result-emoji"></div>
+    <h2>Kvíz vége!</h2>
+    <div class="score-big" id="result-score"></div>
+    <div class="score-sub" id="result-sub"></div>
+    <div class="result-bar-wrap"><div class="result-bar" id="result-bar" style="width:0%"></div></div>
+    <div class="result-btns">
+        <button class="btn-primary" onclick="restartQuiz()">🔄 Újra</button>
+        <button class="btn-secondary" onclick="goBack()">🏠 Főmenü</button>
+    </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// KÉRDÉS ADATBÁZIS
+// type: 'single' | 'multi' | 'match'
+// correct: index(ek) 0-tól (single/multi), vagy párosítás array (match)
+// ══════════════════════════════════════════════════════
+
+const categories = [
+    // ── I. IT ALAPISMERETEK ──────────────────────────────
+    {
+        name: "I. IT Alapismeretek",
+        questions: [
+            {
+                q: "Melyik eszközzel lehet egy kapcsolási rajz alapján leggyorsabban kísérleti áramkört építeni?",
+                type: "single",
+                options: ["Próbapanel", "Oszcilloszkóp", "Forrasztópáka", "Csavarhúzó"],
+                correct: [0]
+            },
+            {
+                q: "Milyen jelölés utal egy LED-re a kapcsolási rajzon?",
+                type: "single",
+                options: ["Két párhuzamos vonal", "Körben áthúzott vonal", "Téglalap", "Háromszögből induló nyíl"],
+                correct: [3]
+            },
+            {
+                q: "Melyik parancs listázza a könyvtár tartalmát Linux alatt?",
+                type: "single",
+                options: ["ls", "pwd", "cat", "touch"],
+                correct: [0]
+            },
+            {
+                q: "Melyik Windows parancs töröl fájlt?",
+                type: "single",
+                options: ["ren", "copy", "del", "dir"],
+                correct: [2]
+            },
+            {
+                q: "Mi a CPU fő feladata?",
+                type: "single",
+                options: ["Adatok tárolása", "Kép megjelenítése", "Utasítások feldolgozása", "Hálózati kapcsolat biztosítása"],
+                correct: [2]
+            },
+            {
+                q: "Melyik állítás igaz a RAM-ra?",
+                type: "single",
+                options: ["Nem illeszkedik az alaplapra", "Ideiglenes adattárolásra szolgál", "Csak SSD-vel együtt működik", "Adatok végleges tárolására használható"],
+                correct: [1]
+            },
+            {
+                q: "Miért fontos a földelés számítógép szerelésekor?",
+                type: "single",
+                options: ["A hűtés javítása céljából", "Az elektrosztatikus kisülés elkerülése érdekében", "A BIOS védelmére", "A tápfeszültség elleni védelem céljából"],
+                correct: [1]
+            },
+            {
+                q: "Miért fontos a rendszeres hardver-karbantartás?",
+                type: "single",
+                options: ["Hibamegelőzés miatt", "Gyorsabb bootidő érdekében", "Garanciahosszabbítás miatt", "A rendszer frissítéséhez"],
+                correct: [0]
+            },
+            {
+                q: "Mi a legmegfelelőbb módja a számítógép belső portalanításának?",
+                type: "single",
+                options: ["Ecset és alkohol", "Vizes rongy", "Sűrített levegő", "Porszívó közvetlen használata"],
+                correct: [2]
+            },
+            {
+                q: "Mi a DHCP szolgáltatás feladata?",
+                type: "single",
+                options: ["Csomagok titkosítása", "IP-címek automatikus kiosztása", "Kapcsolatok naplózása", "Domain nevek lefordítása"],
+                correct: [1]
+            },
+            {
+                q: "Mi az Ethernet kábel tipikus csatlakozója?",
+                type: "single",
+                options: ["USB-C", "HDMI", "DisplayPort", "RJ45"],
+                correct: [3]
+            },
+            {
+                q: "Az IP-cím a hálózati modell melyik rétegéhez tartozik?",
+                type: "single",
+                options: ["Adatkapcsolati réteg", "Fizikai réteg", "Alkalmazási réteg", "Hálózati réteg"],
+                correct: [3]
+            },
+            {
+                q: "Mit vizsgál a „ping" parancs?",
+                type: "single",
+                options: ["Sávszélességet", "Hálózati elérhetőséget", "Portszámokat", "WiFi jelerősséget"],
+                correct: [1]
+            },
+            {
+                q: "Mit jelent a „phishing" kifejezés?",
+                type: "single",
+                options: ["Kémszoftverek elleni védelem", "Adathalászat", "Spam levelek törlését", "Vírusok szelektálását"],
+                correct: [1]
+            },
+            {
+                q: "Mi jellemzi leggyakrabban az IoT-eszközöket?",
+                type: "single",
+                options: ["Csak helyi hálózaton működnek", "Mindig vezetéken kapcsolódnak a hálózathoz", "Hálózaton kommunikálnak és adatokat gyűjtenek", "Nem igényelnek hálózati kapcsolatot"],
+                correct: [2]
+            },
+            {
+                q: "Miért gyorsabb jellemzően az NVMe SSD?",
+                type: "single",
+                options: ["PCIe buszon csatlakozik", "Mert cache nélkül működik", "Mert kisebb a fizikai mérete", "A kisebb fogyasztás miatt"],
+                correct: [0]
+            },
+            {
+                q: "Milyen IP-konfiguráció eredményez csak helyi hálózaton működő kommunikációt?",
+                type: "single",
+                options: ["Hibás MAC-cím", "Túl magas MTU", "Hiányzó vagy rossz alapértelmezett átjáró", "Hiányzó DNS"],
+                correct: [2]
+            },
+            {
+                q: "Mi történik, ha le van tiltva a hardveres virtualizáció?",
+                type: "single",
+                options: ["Hypervisor csak szoftveres emulációt használ", "A virtuális gépek gyorsabbak lesznek", "Virtuális gép futtatható egy virtuális gépen", "A PCIe passthrough lehetséges lesz"],
+                correct: [0]
+            },
+            {
+                q: "Mi a konténer elsődleges előnye egy VM-hez képest azonos hoston?",
+                type: "single",
+                options: ["Más típusú operációs rendszer is futtatható", "Nincs előnye", "A közös kernel miatt kisebb az overhead", "Erősebb izoláció, mert minden konténer külön operációs rendszer futtat"],
+                correct: [2]
+            },
+            {
+                q: "Linuxon melyik jel kéri a folyamatot a szabályos leállásra?",
+                type: "single",
+                options: ["SIGSTOP", "SIGKILL", "SIGTERM", "SIGHUP"],
+                correct: [2]
+            },
+            {
+                q: "Mi a mai jó gyakorlat webkiszolgálón?",
+                type: "single",
+                options: ["Minden verzió engedélyezése", "HTTPS tiltása", "TLS 1.2 és 1.3 engedélyezése, régi verziók tiltása", "Csak TLS 1.0 támogatása a kompatibilitásért"],
+                correct: [2]
+            },
+            {
+                q: "Miért nem backup a RAID?",
+                type: "single",
+                options: ["Mert lassabb", "Nem véd törlés, adatkárosodás ellen", "Mert drága", "Mert hiba esetén nem hozzáférhető"],
+                correct: [1]
+            },
+            {
+                q: "Miért fontos egy szerver eseménynaplóinak rotálása?",
+                type: "single",
+                options: ["Megnöveli a sávszélességet", "Csökkenti a RAM-igényt", "Megakadályozza a tároló telítődését", "Gyorsítja a CPU-t"],
+                correct: [2]
+            },
+            {
+                q: "Miért kell hűtőpaszta a CPU és hűtő közé?",
+                type: "single",
+                options: ["Rögzíti a hűtőt mechanikusan, ha rögzítők elengednének", "A mikroszkopikus hézagokat kitölti, javítva a hőátadást", "Villamos szigetelésre szolgál", "Csökkenti a ventilátor rezgését, így annak zaját"],
+                correct: [1]
+            },
+            {
+                q: "Hogyan viselkednek általában a PCIe kártyák különböző, más verziójú foglalatokban?",
+                type: "single",
+                options: ["A verzió egyáltalán nem befolyásolja a sávszélességet", "Visszafelé kompatibilisek: a lassabb közös verzió és sávszélesség szerint működnek", "Nem kompatibilisek, csak azonos verzióval működnek", "Csak előrefelé kompatibilisek újabb foglalatban"],
+                correct: [1]
+            }
+        ]
+    },
+
+    // ── II. FRONTEND PROGRAMOZÁS ──────────────────────────
+    {
+        name: "II. Frontend programozás",
+        questions: [
+            {
+                q: "Melyik egység mérete függ az aktuális nézet szélességétől?",
+                type: "single",
+                options: ["em", "rem", "vw", "ch"],
+                correct: [2]
+            },
+            {
+                q: "Melyik breakpointhoz tartozik az \"lg\" alapértelmezés szerint (Bootstrap 5.x)?",
+                type: "single",
+                options: ["≥ 576px", "≥ 768px", "≥ 992px", "≥ 1200px"],
+                correct: [2]
+            },
+            {
+                q: "Melyik Bootstrap osztály biztosítja, hogy a szöveg kisbetűből nagybetűssé alakuljon?",
+                type: "single",
+                options: [".text-uppercase", ".fw-bold", ".text-decoration-none", ".text-capitalize"],
+                correct: [0]
+            },
+            {
+                q: "Az alábbiak közül melyik nem tekinthető frontend vagy backend keretrendszernek?",
+                type: "single",
+                options: ["jQuery", "Angular", "Laravel", "Vue.js", "Django"],
+                correct: [0]
+            },
+            {
+                q: "Hogyan készíthetünk egy olyan hivatkozást, amely az oldal egy „kapcsolat" azonosítójú részéhez ugrik?",
+                type: "single",
+                options: ["<a id=\"#kapcsolat\">", "<a href=\"#kapcsolat\">", "<link href=\"#kapcsolat\">", "<a href=\"kapcsolat\">", "<a target=\"#kapcsolat\">"],
+                correct: [1]
+            },
+            {
+                q: "Melyik elem felelős egy űrlap adatainak elküldéséért a szerver felé?",
+                type: "single",
+                options: ["<button type=\"submit\">", "<input type=\"button\">", "<form action=\"send.php\">", "<a href=\"submit.php\">", "<submit>"],
+                correct: [0]
+            },
+            {
+                q: "Hogyan lehet beállítani, hogy az oldal összes szövege dőlt betűvel jelenjen meg?",
+                type: "single",
+                options: ["body { font-style: italic; }", "html { text-style: italic; }", "p { font: italic; }", "* { text: italic; }", "body { font-decoration: italic; }"],
+                correct: [0]
+            },
+            {
+                q: "Melyik feladat NEM a JavaScript tipikus használati területe?",
+                type: "single",
+                options: ["Közvetlen hardvervezérlés", "Űrlapadatok valós idejű ellenőrzése", "Felhasználói események kezelése", "DOM elemek dinamikus módosítása"],
+                correct: [0]
+            },
+            {
+                q: "Minek a neve az a szabványosított, fához hasonló modell, amelyben a HTML elemek jelennek meg?",
+                type: "single",
+                options: ["DOM (Document Object Model)", "VSM (View Structure Model)", "BOM (Browser Object Model)", "HTM (Hierarchical Tag Model)"],
+                correct: [0]
+            },
+            {
+                q: "Melyik JavaScript metódus hoz létre egy új tömböt úgy, hogy az eredeti minden elemére lefuttat egy metódust?",
+                type: "single",
+                options: ["arr.map()", "arr.sort()", "arr.reduce()", "arr.forEach()"],
+                correct: [0]
+            },
+            {
+                q: "Hogyan tudjuk elérni, hogy az oldal összes hivatkozása (linkje) kék színű legyen?",
+                type: "single",
+                options: ["a { color: blue; }", "html { link-color: blue; }", "body a { text-color: blue; }", "a { font-color: blue; }"],
+                correct: [0]
+            },
+            {
+                q: "Melyik CSS szelektor jelöli ki azt az <input> elemet, amelynek az osztálya \"required\" és azonosítója \"ageField\"?",
+                type: "single",
+                options: ["input(required, #ageField)", "input.required#ageField", "input { .required #ageField }", "input#required.ageField"],
+                correct: [1]
+            },
+            {
+                q: "Miért szoktuk a HTML <head> részébe tenni a következő sort: <meta charset=\"UTF-8\">?",
+                type: "single",
+                options: ["Hogy a böngésző helyesen jelenítse meg az ékezetes és speciális karaktereket", "Hogy az oldal reszponzív legyen mobileszközökön", "Hogy a keresőmotorok magasabbra rangsorolják az oldalt", "Hogy a böngésző gyorsabban töltse be a képeket"],
+                correct: [0]
+            },
+            {
+                q: "Melyik JavaScript tömbmetódus távolítja el az első elemet, és ezzel előrébb tolja a többit?",
+                type: "single",
+                options: ["arr.shift()", "arr.pop()", "arr.removeFirst()", "arr.splice(1, 1)"],
+                correct: [0]
+            },
+            {
+                q: "Milyen formátumot ellenőriz a következő reguláris kifejezés? ^[A-Z]{3}-[0-9]{3}$",
+                type: "single",
+                options: ["Három nagybetű, kötőjel, három szám (pl. ABC-123)", "Tetszőleges hosszúságú alfanumerikus azonosító", "Három nagybetű, három szám kötőjel nélkül (pl. ABC123)", "Két nagybetű, kötőjel, négy szám (pl. AB-1234)"],
+                correct: [0]
+            },
+            {
+                q: "Hogyan tudjuk elérni, hogy egy hivatkozás új lapon nyíljon meg?",
+                type: "single",
+                options: ["<a open=\"new\" href=\"oldal.html\">", "<a href=\"oldal.html\" newtab>", "<a href=\"oldal.html\" rel=\"blank\">", "<a href=\"oldal.html\" target=\"_blank\">"],
+                correct: [3]
+            },
+            {
+                q: "Melyik a helyes HTML5 elem videó beágyazására?",
+                type: "single",
+                options: ["<movie controls=\"true\">film.mp4</movie>", "<video src=\"film.mp4\" controls></video>", "<play video=\"film.mp4\"></play>", "<media src=\"film.mp4\" controls></media>"],
+                correct: [1]
+            },
+            {
+                q: "Melyik jelöli a link föléhúzáskori állapotát?",
+                type: "single",
+                options: ["a:hover", "a:click", "a:over", "a:focus:hover"],
+                correct: [0]
+            },
+            {
+                q: "Melyik NEM része a CSS dobozmodellnek?",
+                type: "single",
+                options: ["content", "border", "padding", "shadow"],
+                correct: [3]
+            },
+            {
+                q: "Melyik mértékegység relatív a szülő betűméretéhez?",
+                type: "single",
+                options: ["cm", "px", "em", "deg"],
+                correct: [2]
+            },
+            {
+                q: "Hogyan választjuk ki az összes <span>-t, ami egy <div> belsejében van (akár beljebb is)?",
+                type: "single",
+                options: ["div > span { ... }", "span div { ... }", "div + span { ... }", "div span { ... }"],
+                correct: [3]
+            },
+            {
+                q: "Melyik a korszerűbb mód egy blokkon belüli változó deklarálására JavaScriptben?",
+                type: "single",
+                options: ["def szam = 5;", "num szam = 5;", "var szam = 5;", "let szam = 5;"],
+                correct: [3]
+            },
+            {
+                q: "Hogyan kérdezzük le egy tömb elemszámát JavaScriptben?",
+                type: "single",
+                options: ["arr.count()", "arr.length", "count(arr)", "arr.size"],
+                correct: [1]
+            },
+            {
+                q: "Melyik a helyes függvénydeklaráció JavaScriptben?",
+                type: "single",
+                options: ["osszeg(a, b) => { return a + b; }", "function osszeg(a, b) { return a + b; }", "func osszeg(a, b) = { return a + b; }", "function:osszeg(a, b) -> a + b;"],
+                correct: [1]
+            },
+            {
+                q: "Hogyan állítunk be kattintás eseményt JavaScriptben egy gombra?",
+                type: "single",
+                options: ["gomb.click = handler();", "document.click(\"gomb\", handler);", "document.getElementById(\"gomb\").addEventListener(\"click\", handler);", "onClick(\"gomb\", handler);"],
+                correct: [2]
+            },
+            {
+                q: "Hogyan írunk fejlesztési célból azonnal látható üzenetet a böngésző fejlesztői konzoljára JavaScriptben?",
+                type: "single",
+                options: ["window.write(\"Üzenet\");", "document.console(\"Üzenet\");", "alert.log(\"Üzenet\");", "console.log(\"Üzenet\");"],
+                correct: [3]
+            },
+            {
+                q: "Melyik ES6-os módszerrel tudunk könnyen változót szövegbe írni?",
+                type: "single",
+                options: ["concat(\"Hello\", nev)", "\"Hello \" + {nev}", "format(\"Hello %s\", nev)", "`Hello ${nev}`"],
+                correct: [3]
+            },
+            {
+                q: "Hogyan alakítunk át egy JS objektumot JSON szöveggé?",
+                type: "single",
+                options: ["JSON.parse(obj)", "obj.toJson()", "JSON.stringify(obj)", "JSON.toString(obj)"],
+                correct: [2]
+            },
+            {
+                q: "Melyik JavaScript metódussal ellenőrizzük, hogy egy érték nem szám?",
+                type: "single",
+                options: ["NaN(ertek)", "isNaN(ertek)", "isNumber(ertek) == false", "valueOf(ertek) == NaN"],
+                correct: [1]
+            },
+            {
+                q: "Hogyan használjuk az alap Bootstrap (v4/v5) ikonokat?",
+                type: "single",
+                options: ["A data-icon attribútum hozza létre", "Alapból minden .btn-hez jár ikon", "Külön ikoncsomagot kell hozzáadni (pl. Bootstrap Icons)", "A .icon osztály automatikusan ikont rajzol"],
+                correct: [2]
+            }
+        ]
+    },
+
+    // ── III. BACKEND PROGRAMOZÁS ──────────────────────────
+    {
+        name: "III. Backend programozás",
+        questions: [
+            {
+                q: "Melyik adattárolási megoldás tekinthető NoSQL adatbázisnak, nem pedig klasszikus relációsnak?",
+                type: "single",
+                options: ["Microsoft SQL Server", "mariaDB", "Oracle Database", "MongoDB"],
+                correct: [3]
+            },
+            {
+                q: "Hogyan biztosítható egy MySQL/MariaDB táblánál, hogy az ékezetes magyar szövegek összehasonlítása kis-nagybetű érzéketlen legyen?",
+                type: "single",
+                options: ["CREATE TABLE ... CHARSET utf8 CASEINSENSITIVE;", "CREATE TABLE ... ORDER BY 'hu_HU';", "CREATE TABLE ... COLLATE utf8_hungarian_ci;", "CREATE TABLE ... CHARACTER SET latin2_hu;"],
+                correct: [2]
+            },
+            {
+                q: "Miért szokás az elsődleges kulcsot (PRIMARY KEY) AUTO_INCREMENT egész számként létrehozni egy táblában?",
+                type: "single",
+                options: ["Hogy a külső kulcsok ne tudjanak rá hivatkozni", "Hogy a mező értéke később szabadon duplikálható legyen", "Hogy minden rekord garantáltan egyedi azonosítót kapjon beszúráskor", "Hogy a tábla mezői automatikusan titkosítva legyenek"],
+                correct: [2]
+            },
+            {
+                q: "Melyik SQL utasítással tudunk egy már létező táblához új oszlopot hozzáadni?",
+                type: "single",
+                options: ["ALTER TABLE tabla_neve ADD uj_oszlop VARCHAR(100);", "CREATE COLUMN uj_oszlop ON tabla_neve VARCHAR(100);", "UPDATE tabla_neve ADD COLUMN uj_oszlop VARCHAR(100);", "MODIFY TABLE tabla_neve (uj_oszlop VARCHAR(100));"],
+                correct: [0]
+            },
+            {
+                q: "Melyik adattípus alkalmas képfájlok vagy PDF-ek bináris tartalmának adatbázisban való tárolására?",
+                type: "single",
+                options: ["TEXT", "BLOB", "INT", "FILE"],
+                correct: [1]
+            },
+            {
+                q: "Hogyan tudjuk egyben lekérdezni az ügyfél vezeték- és keresztnevét úgy, hogy egy szóköz legyen köztük?",
+                type: "single",
+                options: ["SELECT CONCATENATE(ugyfelek) AS teljes_nev;", "SELECT MERGE(vezeteknev, \" \", keresztnev) FROM ugyfelek;", "SELECT vezeteknev + \" \" + keresztnev AS teljes_nev FROM ugyfelek;", "SELECT CONCAT(vezeteknev, \" \", keresztnev) AS teljes_nev FROM ugyfelek;"],
+                correct: [3]
+            },
+            {
+                q: "Hogyan tudunk lekérdezni csak azokat a rendeléseket, amelyek státusza \"uj\" VAGY \"folyamatban\"?",
+                type: "single",
+                options: ["SELECT * FROM rendelesek WHERE statusz IN ('uj','folyamatban');", "SELECT * FROM rendelesek WHERE statusz = 'uj' OR 'folyamatban';", "SELECT * FROM rendelesek WHERE statusz = 'uj' AND statusz = 'folyamatban';", "SELECT * FROM rendelesek WHERE statusz BETWEEN 'uj' AND 'folyamatban';"],
+                correct: [0]
+            },
+            {
+                q: "Hogyan kérdezhetjük le, hogy hány különböző város szerepel az ugyfelek táblában a 'varos' mezőben?",
+                type: "single",
+                options: ["SELECT COUNT(UNIQUE varos) FROM ugyfelek;", "SELECT COUNT(DISTINCT varos) FROM ugyfelek;", "SELECT COUNT(varos) UNIQUE FROM ugyfelek;", "SELECT DISTINCT COUNT(varos) FROM ugyfelek;"],
+                correct: [1]
+            },
+            {
+                q: "Hogyan kérdezhetjük le azokat a dolgozókat, akiknek VAN megadott e-mail címük?",
+                type: "single",
+                options: ["SELECT * FROM dolgozok WHERE email IS NOT NULL;", "SELECT * FROM dolgozok WHERE email IS NULL;", "SELECT * FROM dolgozok WHERE email NOT EMPTY;", "SELECT * FROM dolgozok WHERE email != \"\";"],
+                correct: [0]
+            },
+            {
+                q: "Hogyan tudjuk lekérdezni csak azokat az ügyfeleket, akiknek az összes rendelésértéke 100 000 Ft fölött van?",
+                type: "single",
+                options: [
+                    "SELECT ugyfel_id, SUM(osszeg) FROM rendelesek GROUP BY ugyfel_id WHERE SUM(osszeg) > 100000;",
+                    "SELECT ugyfel_id, SUM(osszeg) FROM rendelesek WHERE SUM(osszeg) > 100000 GROUP BY ugyfel_id;",
+                    "SELECT ugyfel_id, SUM(osszeg) FROM rendelesek HAVING osszeg > 100000;",
+                    "SELECT ugyfel_id, SUM(osszeg) FROM rendelesek GROUP BY ugyfel_id HAVING SUM(osszeg) > 100000;"
+                ],
+                correct: [3]
+            },
+            {
+                q: "Az alábbiak közül melyik NEM függőség- vagy csomagkezelő rendszer?",
+                type: "single",
+                options: ["Composer", "npm", "pip", "Apache"],
+                correct: [3]
+            },
+            {
+                q: "Melyik NEM szabványos HTTP státuszkód?",
+                type: "single",
+                options: ["500 Internal Server Error", "599 Custom Error", "404 Not Found", "418 I'm a teapot"],
+                correct: [1]
+            },
+            {
+                q: "Mit NEM a HTTP kérés törzsében (body) szoktunk elküldeni?",
+                type: "single",
+                options: ["JSON adatot (application/json)", "Fájlfeltöltés tartalmát (multipart/form-data)", "Űrlapadatokat (application/x-www-form-urlencoded)", "A HTTP státuszkódot"],
+                correct: [3]
+            },
+            {
+                q: "Ha egy REST API „stateless", akkor hogyan kell a kliensnek elküldenie az autentikációs információkat?",
+                type: "single",
+                options: ["Csak a kapcsolat lezárásakor, mert a szerver addig buffereli", "Egyszer naponta, mert a szerver napi állapotot vezet a kliensekről", "Mindegyik kérésben önállóan, mert a szerver nem őrzi meg a kliens állapotát", "Csak az első kérésben, mert a szerver utána sessionben tárolja"],
+                correct: [2]
+            },
+            {
+                q: "Melyik adatformátumot használják leggyakrabban REST alapú web API-k válaszainak küldésére?",
+                type: "single",
+                options: ["YAML", "JSON", "XML", "CSV"],
+                correct: [1]
+            },
+            {
+                q: "Mire használjuk egy modern backend keretrendszerben az adatbázis-migrációkat?",
+                type: "single",
+                options: ["A frontendes komponensek buildelésére", "A szerver erőforrásainak (CPU, RAM) automatikus skálázására", "A REST végpontok automatikus dokumentálására", "Az adatbázis sémaváltozásainak verziózott, kódban definiált és automatizálható kezelésére"],
+                correct: [3]
+            },
+            {
+                q: "Mi a célja egy IoC konténernek?",
+                type: "single",
+                options: ["A statikus fájlok kiszolgálása HTTP-n keresztül", "A függőségek automatikus feloldása és példányosítása a regisztrált interfészek alapján", "A böngészők közötti kompatibilitási problémák kezelése", "Az SQL utasítások futtatása több adatbázison egyszerre"],
+                correct: [1]
+            },
+            {
+                q: "Melyik fejléc mondja meg, hogy a kérés törzse milyen formátumú?",
+                type: "single",
+                options: ["Content-Type", "User-Agent", "Content-Length", "Accept"],
+                correct: [0]
+            },
+            {
+                q: "Melyik HTTP metódust használjuk tipikusan új erőforrás létrehozására egy erőforrásgyűjteményen?",
+                type: "single",
+                options: ["GET", "DELETE", "PUT", "POST"],
+                correct: [3]
+            },
+            {
+                q: "Melyik státuszkód jelzi leginkább, hogy az erőforrás sikeresen létrejött?",
+                type: "single",
+                options: ["200 OK", "204 No Content", "201 Created", "202 Accepted"],
+                correct: [2]
+            },
+            {
+                q: "Mivel fejezzük be a sikeres SQL tranzakciót?",
+                type: "single",
+                options: ["END", "COMMIT", "CLOSE", "ROLLBACK"],
+                correct: [1]
+            },
+            {
+                q: "Mire használjuk általában a cookie-kat backendhez kapcsolódó webalkalmazásokban?",
+                type: "single",
+                options: ["Felhasználói jelszavak nyílt szöveges mentésére", "Szerveroldali erőforrások (RAM, CPU) dinamikus kiosztására", "Kliensoldalon tárolt, kis méretű állapot vagy azonosító megőrzésére", "Nagy mennyiségű alkalmazásadat tartós tárolására"],
+                correct: [2]
+            },
+            {
+                q: "Miért fontos a szerveroldali validálás akkor is, ha a kliensen is validálunk?",
+                type: "single",
+                options: ["Mert kliens oldalon nem lehet validálni", "Mert a szerver gyorsabb", "Mert így kevesebb HTTP metódus kell", "Mert a kliensoldali ellenőrzés megkerülhető"],
+                correct: [3]
+            },
+            {
+                q: "Miért tárolunk konfigurációt (DB jelszó, API key) környezeti változóban?",
+                type: "single",
+                options: ["Hogy a kliensoldalról is közvetlenül elérhetők legyenek", "Hogy az SQL lekérdezések gyorsabban fussanak", "Hogy gyorsabb legyen a JSON parse", "Hogy ne kerüljön be a forráskódba"],
+                correct: [3]
+            },
+            {
+                q: "Mi a mikroservice architektúra egyik fő előnye a monolittal szemben?",
+                type: "single",
+                options: ["Az egyes szolgáltatások külön-külön skálázhatók és fejleszthetők", "Kevesebb hálózati hívás van a kisebb méretek miatt", "Nem kell API-t írni", "Nem kell naplózni"],
+                correct: [0]
+            },
+            {
+                q: "Mi a reverse proxy legjellemzőbb feladata egy több szolgáltatásból álló backend előtt?",
+                type: "single",
+                options: ["Kérések fogadása és továbbítása a megfelelő belső szolgáltatás felé", "A mobilkliensek automatikus frissítése az app store-okban", "A frontend buildelése és a JS fájlok minifikálása futásidőben", "Az alkalmazás adatbázisának karbantartása és indexelése"],
+                correct: [0]
+            },
+            {
+                q: "Mi a lazy loading lényege?",
+                type: "single",
+                options: ["Nem enged többtáblás JOIN műveleteket", "Csak akkor tölti be a kapcsolódó objektumokat, amikor először hozzájuk férünk", "Már az első lekérdezéskor minden kapcsolatot előre betölt", "A lekérdezések optimalizálása érdekében kikapcsolja az adatbázis indexeket"],
+                correct: [1]
+            },
+            {
+                q: "Mi a legtipikusabb közvetlen oka az SQL injection sérülékenységnek webalkalmazásokban?",
+                type: "single",
+                options: [
+                    "A szerver oldalon nem történik validáció, így hibás adatok is kerülhetnek az adatbázisba",
+                    "Dinamikus SQL string összeállítása úgy, hogy a felhasználói bemenetet nem kötött módon adjuk át az adatbázisnak",
+                    "Az ORM rétegben engedélyezett a lazy loading, ezért a lekérdezések több táblára is kiterjednek",
+                    "A bemenet csak HTML-escapinget kap, ezért az adatbázis nem tudja értelmezni"
+                ],
+                correct: [1]
+            },
+            {
+                q: "Mit jelent a 304 Not Modified?",
+                type: "single",
+                options: ["Nem sikerült a frissítés a szerveren", "Az erőforrás nem változott, a kliens használhatja a cache-t", "Az erőforrás áthelyezésre került", "A kliens nincs hitelesítve"],
+                correct: [1]
+            },
+            {
+                q: "Mi az elsődleges célja egy adatbázis-indexnek?",
+                type: "single",
+                options: ["A táblák közötti idegen kulcsos kapcsolatok automatikus létrehozása", "A táblába történő INSERT műveletek felgyorsítása nagy terhelés alatt", "A feltételeket használó lekérdezések végrehajtásának felgyorsítása", "A lekérdezések tranzakciós zárolásának teljes megszüntetése"],
+                correct: [2]
+            }
+        ]
+    },
+
+    // ── IV. SZOFTVERFEJLESZTÉS & TESZTELÉS ───────────────
+    {
+        name: "IV. Szoftverfejlesztés & tesztelés",
+        questions: [
+            {
+                q: "A Gitet eredetileg egy operációs rendszer fejlesztésének megkönnyítésére készítették 2005-ben. Kinek a kezdeményezésére készült és melyik operációs rendszerhez?",
+                type: "single",
+                options: ["Bill Gates (Windows 8)", "Andy Rubin (Android)", "Paul Allen (MS DOS)", "Steve Jobs (iOS)", "Linus Torvalds (Linux)"],
+                correct: [4]
+            },
+            {
+                q: "Mik a Githez hasonló elosztott verziókövető rendszerek legnagyobb előnyei? (Több helyes válasz lehetséges!)",
+                type: "multi",
+                options: ["A változásokat csak központi szerveren hagyhatja jóvá", "Minden fejlesztő gépén elérhető a teljes repository története", "Az elosztott rendszerek kevesebb tárhelyet igényelnek", "Hálózati kapcsolat nélkül is lehet commitolni", "Minden módosítás azonnal szinkronizálódik az interneten"],
+                correct: [1, 3]
+            },
+            {
+                q: "A Git használatához milyen azonosítást szolgáló beállításokat kell elvégeznünk a helyi konfigurációban, mielőtt commitot készíthetünk? (Több helyes válasz lehetséges!)",
+                type: "multi",
+                options: ["user.name", "user.password", "user.email", "github.token", "ssh.key"],
+                correct: [0, 2]
+            },
+            {
+                q: "Hol tárolja a Git a helyi projekt verziókövetési adatait?",
+                type: "single",
+                options: ["A projekt mappájában egy rejtett .git mappában", "Sehol, az adatbázis egy távoli szolgáltatón van (pl. GitHub)", "A Git telepítési mappájában (pl. C:\\Program Files\\Git)", "A felhasználó mappájában (pl. C:\\Users\\AppData)", "Az adatbáziskezelő rendszer mappájában (pl. C:\\XAMPP)"],
+                correct: [0]
+            },
+            {
+                q: "Milyen állapotokat tart számon a Git a fájlokról és azok változásairól? (Több helyes válasz lehetséges!)",
+                type: "multi",
+                options: ["modified", "untracked", "deleted", "added / staged", "published"],
+                correct: [0, 1, 2, 3]
+            },
+            {
+                q: "Tárolási helyük alapján milyen típusú lehet egy Git repository? (Több helyes válasz lehetséges!)",
+                type: "multi",
+                options: ["main", "private", "branch", "remote", "public", "local"],
+                correct: [3, 5]
+            },
+            {
+                q: "Milyen egyedi értékkel azonosítható egy commit?",
+                type: "single",
+                options: ["DateTime / Timestamp", "URI / URL", "SHA Hash", "User + Email", "UUID / GUID"],
+                correct: [2]
+            },
+            {
+                q: "Párosítsa a git parancsokat a jelentésükhöz!\n1. git init → ?\n2. git checkout → ?\n3. git clone → ?\n4. git commit → ?",
+                type: "single",
+                options: [
+                    "1-d (init=új repo), 2-a (checkout=ág váltás), 3-b (clone=letöltés), 4-c (commit=rögzítés)",
+                    "1-a, 2-b, 3-c, 4-d",
+                    "1-c, 2-d, 3-a, 4-b",
+                    "1-b, 2-c, 3-d, 4-a"
+                ],
+                correct: [0]
+            },
+            {
+                q: "Párosítsa a fogalmakat megfelelő párjukkal!\n1. commit → ?\n2. checkout → ?\n3. merge → ?\n4. master → ?",
+                type: "single",
+                options: [
+                    "1-b (message), 2-a (branch), 3-d (rebase), 4-c (main)",
+                    "1-a, 2-b, 3-c, 4-d",
+                    "1-d, 2-c, 3-b, 4-a",
+                    "1-c, 2-d, 3-a, 4-b"
+                ],
+                correct: [0]
+            },
+            {
+                q: "Hogyan tölthetők le a változások egy távoli repository-ból a már létező helyi adattárba?",
+                type: "single",
+                options: ["git push", "git status update", "git pull", "git clone", "git remote update"],
+                correct: [2]
+            },
+            {
+                q: "Mik a hátrányai, ha egy projekt fejlesztését nem bontjuk ágakra? (Több helyes válasz lehetséges!)",
+                type: "multi",
+                options: ["biztonsági kockázatot jelent", "jelentősen több tárhelyet igényel", "kiemelkedően nő a hálózati forgalom", "nehezebb a párhuzamos fejlesztés", "konfliktusok keletkezhetnek"],
+                correct: [3, 4]
+            },
+            {
+                q: "Ha szeretnénk csatlakozni egy nyílt forráskódú projekthez a GitHubon, és aktívan közre akarunk működni a fejlesztésében, melyik a leghatékonyabb módszer?",
+                type: "single",
+                options: ["branch repository", "fork repository", "merge repository", "init repository", "clone repository"],
+                correct: [1]
+            },
+            {
+                q: "GitHubon egy nyilvános projektünkhöz érkezik egy „pull request". Mit szeretne ezzel az idegen felhasználó elérni?",
+                type: "single",
+                options: ["a módosításait szeretné beolvasztani a projektünkbe", "közreműködő szerepet kér a projekthez", "klónozni szeretné a repository-nkat", "saját commitot szeretné készíteni", "szeretné letölteni a forráskódunkat"],
+                correct: [0]
+            },
+            {
+                q: "Mi az agilis módszertan egyik alapelve?",
+                type: "single",
+                options: ["A dokumentáció minden esetben fontosabb a működő szoftvernél", "A változásokat kerülni kell", "Rövid iterációkban, folyamatos visszacsatolással fejlesztünk", "A teljes projektet előre ki kell részletezni"],
+                correct: [2]
+            },
+            {
+                q: "Mi a Scrum Master fő feladata?",
+                type: "single",
+                options: ["A tesztautomatizálás", "A csapat működésének támogatása és az akadályok elhárítása", "A Product Backlog írása üzleti szempontból", "A kiadások (release) jóváhagyása üzleti oldalról"],
+                correct: [1]
+            },
+            {
+                q: "Mi a jó user story egyik jellemzője?",
+                type: "single",
+                options: ["Csak a UI színeket definiálja", "Forráskódot tartalmaz", "Üzleti értéket fogalmaz meg egy szereplő szemszögéből", "Csak technikai részleteket ír le"],
+                correct: [2]
+            },
+            {
+                q: "Miért fontos a WIP limit Kanbanban?",
+                type: "single",
+                options: ["Hogy több hibát ne lehessen egyszerre rögzíteni", "Hogy mindenki mindig maximális terhelésen dolgozzon", "Hogy ne kelljen becsléseket végezni", "Hogy ne dolgozzon a csapat túl sok feladaton egyszerre"],
+                correct: [3]
+            },
+            {
+                q: "Mire jó a kritikus út elemzés?",
+                type: "single",
+                options: ["A kód minőségének mérésére", "A tesztelési hibák priorizálására", "A leghosszabb meghatározó tevékenységsor azonosítására", "A sprint feladatok becslésére"],
+                correct: [2]
+            },
+            {
+                q: "Mit vizsgálunk elsősorban terheléses tesztek során?",
+                type: "single",
+                options: ["Hogy előre meghatározott számú egyidejű kérést milyen válaszidővel tud kiszolgálni", "Hogy az üzleti szereplők elfogadták-e a funkciók működését", "Hogy az egyes függvények matematikailag helyes eredményt adnak-e nagy terhelés mellett is", "Hogy az UI elemek minden böngészőben azonos betűmérettel jelennek meg"],
+                correct: [0]
+            },
+            {
+                q: "Mi a unit tesztek elsődleges célja?",
+                type: "single",
+                options: ["A teljes rendszer egy részének üzleti folyamatainak végigtesztelése valós adatbázissal", "Egy jól körülírható kódrészlet viselkedésének ellenőrzése izolált környezetben", "A grafikus felület reszponzivitásának vizsgálata több képernyőméreten", "A különböző modulok közötti adatáramlás vizsgálata"],
+                correct: [1]
+            },
+            {
+                q: "Miért NEM elég kizárólag automatizált teszteket futtatni egy összetett alkalmazásnál?",
+                type: "single",
+                options: ["Mert a teljes körű manuális tesztelés olcsóbb", "Mert az automatizált tesztek nem futtathatók CI/CD-ben", "Mert az automatizált tesztek mindig lassabbak, mert sok apró tesztből állnak", "Mert bizonyos hibák csak manuális vizsgálattal derülnek ki"],
+                correct: [3]
+            },
+            {
+                q: "Mikor érdemes egy tesztben az e-mail küldő modult „mock"-kal helyettesíteni?",
+                type: "single",
+                options: ["Amikor integrációs tesztet futtatunk éles környezetben", "Amikor a valós SMTP szerver terhelhetőségét akarjuk mérni teszt üzenetekkel", "Amikor csak azt akarjuk ellenőrizni, hogy a kód megpróbálta elküldeni az e-mailt", "Amikor a valódi e-mail tartalmat spam szűrőkön akarjuk átfuttatni"],
+                correct: [2]
+            },
+            {
+                q: "Mit jelent a statikus tesztelés?",
+                type: "single",
+                options: ["A kód minden lehetséges bemenettel való végigfuttatását", "A felhasználói felület kézi kipróbálását minden böngészőben", "A forrás vagy dokumentum futtatás nélküli ellenőrzését", "A teljes alkalmazás adatbázissal együtt történő próbaüzemét"],
+                correct: [2]
+            }
+        ]
+    }
+];
+
+// ══════════════════════════════════════════════════════
+// ÁLLAPOT
+// ══════════════════════════════════════════════════════
+let currentQuestions = [];
+let currentIndex = 0;
+let score = 0;
+let maxScore = 0;
+let selectedAnswers = [];
+let answered = false;
+let currentCatName = "";
+
+// ══════════════════════════════════════════════════════
+// NAVIGÁCIÓ
+// ══════════════════════════════════════════════════════
+function startQuiz(catIndex) {
+    if (catIndex === 4) {
+        currentQuestions = categories.flatMap(c => c.questions);
+        currentCatName = "Összes témakör";
+    } else {
+        currentQuestions = categories[catIndex].questions;
+        currentCatName = categories[catIndex].name;
+    }
+    currentIndex = 0;
+    score = 0;
+    maxScore = currentQuestions.length;
+    answered = false;
+
+    document.getElementById('category-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'flex';
+    document.getElementById('cat-label').textContent = currentCatName;
+
+    renderQuestion();
+}
+
+function goBack() {
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('category-screen').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════════════════
+// KÉRDÉS MEGJELENÍTÉS
+// ══════════════════════════════════════════════════════
+function renderQuestion() {
+    answered = false;
+    selectedAnswers = [];
+
+    const q = currentQuestions[currentIndex];
+    const total = currentQuestions.length;
+
+    // Progress
+    document.getElementById('progress-bar').style.width = ((currentIndex / total) * 100) + '%';
+    document.getElementById('score-display').textContent = `${currentIndex + 1} / ${total}  |  ✅ ${score}`;
+
+    document.getElementById('btn-check').style.display = 'inline-block';
+    document.getElementById('btn-check').disabled = true;
+    document.getElementById('btn-next').style.display = 'none';
+
+    let html = `<div class="question-num">${currentIndex + 1}. kérdés</div>`;
+    html += `<div class="question-text">${q.q.replace(/\n/g, '<br>')}</div>`;
+
+    if (q.type === 'multi') {
+        html += `<div class="multi-hint">⚠️ Több helyes válasz is lehetséges – jelölj meg minden helyeset!</div>`;
+        html += `<div class="answers" id="answers">`;
+        q.options.forEach((opt, i) => {
+            html += `<button class="answer-btn" id="ans-${i}" onclick="toggleMulti(${i})">${String.fromCharCode(97+i)}) ${opt}</button>`;
+        });
+        html += `</div>`;
+    } else {
+        html += `<div class="answers" id="answers">`;
+        q.options.forEach((opt, i) => {
+            html += `<button class="answer-btn" id="ans-${i}" onclick="selectSingle(${i})">${String.fromCharCode(97+i)}) ${opt}</button>`;
+        });
+        html += `</div>`;
+    }
+
+    html += `<div id="feedback"></div>`;
+    document.getElementById('quiz-body').innerHTML = html;
+}
+
+function selectSingle(idx) {
+    if (answered) return;
+    selectedAnswers = [idx];
+    document.querySelectorAll('.answer-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('ans-' + idx).classList.add('selected');
+    document.getElementById('btn-check').disabled = false;
+}
+
+function toggleMulti(idx) {
+    if (answered) return;
+    const btn = document.getElementById('ans-' + idx);
+    if (selectedAnswers.includes(idx)) {
+        selectedAnswers = selectedAnswers.filter(i => i !== idx);
+        btn.classList.remove('selected');
+    } else {
+        selectedAnswers.push(idx);
+        btn.classList.add('selected');
+    }
+    document.getElementById('btn-check').disabled = selectedAnswers.length === 0;
+}
+
+// ══════════════════════════════════════════════════════
+// ELLENŐRZÉS
+// ══════════════════════════════════════════════════════
+function checkAnswer() {
+    if (answered) return;
+    answered = true;
+
+    const q = currentQuestions[currentIndex];
+    const correct = q.correct;
+
+    // Disable all buttons
+    document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+
+    // Show correct answers
+    correct.forEach(i => document.getElementById('ans-' + i).classList.add('correct'));
+
+    // Mark wrong selections
+    selectedAnswers.forEach(i => {
+        if (!correct.includes(i)) {
+            document.getElementById('ans-' + i).classList.add('wrong');
+        }
+    });
+
+    // Calculate score
+    let isCorrect = false;
+    if (q.type === 'multi') {
+        const sortedSel = [...selectedAnswers].sort().join(',');
+        const sortedCor = [...correct].sort().join(',');
+        isCorrect = sortedSel === sortedCor;
+    } else {
+        isCorrect = selectedAnswers.length === 1 && correct.includes(selectedAnswers[0]);
+    }
+
+    if (isCorrect) score++;
+
+    const fb = document.getElementById('feedback');
+    if (isCorrect) {
+        fb.innerHTML = `<div class="feedback-msg ok">✅ Helyes!</div>`;
+    } else {
+        const correctText = correct.map(i => q.options[i]).join(', ');
+        fb.innerHTML = `<div class="feedback-msg fail">❌ Helytelen! A helyes válasz: <strong>${correctText}</strong></div>`;
+    }
+
+    document.getElementById('btn-check').style.display = 'none';
+    document.getElementById('btn-next').style.display = 'inline-block';
+
+    const total = currentQuestions.length;
+    document.getElementById('score-display').textContent = `${currentIndex + 1} / ${total}  |  ✅ ${score}`;
+}
+
+// ══════════════════════════════════════════════════════
+// KÖVETKEZŐ KÉRDÉS / EREDMÉNY
+// ══════════════════════════════════════════════════════
+function nextQuestion() {
+    currentIndex++;
+    if (currentIndex >= currentQuestions.length) {
+        showResult();
+    } else {
+        renderQuestion();
+    }
+}
+
+function showResult() {
+    document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'flex';
+
+    const pct = Math.round((score / maxScore) * 100);
+    let emoji = '😢';
+    if (pct >= 90) emoji = '🏆';
+    else if (pct >= 75) emoji = '🎉';
+    else if (pct >= 50) emoji = '👍';
+    else if (pct >= 30) emoji = '😐';
+
+    document.getElementById('result-emoji').textContent = emoji;
+    document.getElementById('result-score').textContent = `${score} / ${maxScore}`;
+    document.getElementById('result-sub').textContent = `${pct}% helyes válasz · ${currentCatName}`;
+
+    setTimeout(() => {
+        document.getElementById('result-bar').style.width = pct + '%';
+    }, 100);
+}
+
+function restartQuiz() {
+    document.getElementById('result-screen').style.display = 'none';
+    // Find cat index
+    let catIdx = categories.findIndex(c => c.name === currentCatName);
+    if (catIdx === -1) catIdx = 4;
+    startQuiz(catIdx);
+}
+</script>
+</body>
+</html>
