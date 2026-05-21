@@ -323,6 +323,28 @@
             transition: all 0.2s;
         }
         .btn-secondary:hover { background: #1d2f5e; }
+
+        /* ── RESZPONZÍV ── */
+        @media (max-width: 600px) {
+            #category-screen { padding: 20px 12px; gap: 14px; }
+            #category-screen h1 { font-size: 1.4em; }
+            .cat-grid { grid-template-columns: 1fr; gap: 10px; }
+            .cat-card { padding: 14px; }
+
+            .quiz-header { padding: 8px 12px; gap: 6px; }
+            .quiz-header .cat-name { font-size: 0.8em; }
+            .progress-bar-wrap { min-width: 60px; }
+
+            .quiz-body { padding: 16px 12px; }
+            .question-text { font-size: 0.97em; }
+            .answer-btn { padding: 11px 13px; font-size: 0.9em; }
+
+            .quiz-action { padding: 12px; }
+            .btn-primary { padding: 10px 20px; font-size: 0.95em; width: 100%; }
+
+            #result-screen .score-big { font-size: 2.2em; }
+            #result-screen h2 { font-size: 1.5em; }
+        }
     </style>
 </head>
 <body>
@@ -371,10 +393,6 @@
         <span class="score-display" id="score-display"></span>
     </div>
     <div class="quiz-body" id="quiz-body"></div>
-    <div class="quiz-footer">
-        <button class="btn-primary" id="btn-check" onclick="checkAnswer()">Ellenőrzés</button>
-        <button class="btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Következő →</button>
-    </div>
 </div>
 
 <!-- ── EREDMÉNY KÉPERNYŐ ── -->
@@ -1129,6 +1147,12 @@ function startQuiz(catIndex) {
         currentQuestions = categories[catIndex].questions;
         currentCatName = categories[catIndex].name;
     }
+    // Keverés (Fisher-Yates)
+    for (let i = currentQuestions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [currentQuestions[i], currentQuestions[j]] = [currentQuestions[j], currentQuestions[i]];
+    }
+
     currentIndex = 0;
     score = 0;
     maxScore = currentQuestions.length;
@@ -1162,10 +1186,6 @@ function renderQuestion() {
     document.getElementById('progress-bar').style.width = ((currentIndex / total) * 100) + '%';
     document.getElementById('score-display').textContent = `${currentIndex + 1} / ${total}  |  ✅ ${score}`;
 
-    document.getElementById('btn-check').style.display = 'inline-block';
-    document.getElementById('btn-check').disabled = true;
-    document.getElementById('btn-next').style.display = 'none';
-
     let html = `<div class="question-num">${currentIndex + 1}. kérdés</div>`;
     html += `<div class="question-text">${esc(q.q).replace(/\n/g, '<br>')}</div>`;
 
@@ -1185,6 +1205,10 @@ function renderQuestion() {
     }
 
     html += `<div id="feedback"></div>`;
+    html += `<div class="quiz-action" style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">`;
+    html += `<button class="btn-primary" id="btn-check" onclick="checkAnswer()" disabled>Ellenőrzés</button>`;
+    html += `<button class="btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Következő →</button>`;
+    html += `</div>`;
     document.getElementById('quiz-body').innerHTML = html;
 }
 
