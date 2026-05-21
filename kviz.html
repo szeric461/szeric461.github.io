@@ -1107,6 +1107,18 @@ let answered = false;
 let currentCatName = "";
 
 // ══════════════════════════════════════════════════════
+// HTML ESCAPE
+// ══════════════════════════════════════════════════════
+function esc(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ══════════════════════════════════════════════════════
 // NAVIGÁCIÓ
 // ══════════════════════════════════════════════════════
 function startQuiz(catIndex) {
@@ -1155,19 +1167,19 @@ function renderQuestion() {
     document.getElementById('btn-next').style.display = 'none';
 
     let html = `<div class="question-num">${currentIndex + 1}. kérdés</div>`;
-    html += `<div class="question-text">${q.q.replace(/\n/g, '<br>')}</div>`;
+    html += `<div class="question-text">${esc(q.q).replace(/\n/g, '<br>')}</div>`;
 
     if (q.type === 'multi') {
         html += `<div class="multi-hint">⚠️ Több helyes válasz is lehetséges – jelölj meg minden helyeset!</div>`;
         html += `<div class="answers" id="answers">`;
         q.options.forEach((opt, i) => {
-            html += `<button class="answer-btn" id="ans-${i}" onclick="toggleMulti(${i})">${String.fromCharCode(97+i)}) ${opt}</button>`;
+            html += `<button class="answer-btn" id="ans-${i}" onclick="toggleMulti(${i})">${String.fromCharCode(97+i)}) ${esc(opt)}</button>`;
         });
         html += `</div>`;
     } else {
         html += `<div class="answers" id="answers">`;
         q.options.forEach((opt, i) => {
-            html += `<button class="answer-btn" id="ans-${i}" onclick="selectSingle(${i})">${String.fromCharCode(97+i)}) ${opt}</button>`;
+            html += `<button class="answer-btn" id="ans-${i}" onclick="selectSingle(${i})">${String.fromCharCode(97+i)}) ${esc(opt)}</button>`;
         });
         html += `</div>`;
     }
