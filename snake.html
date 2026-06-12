@@ -72,18 +72,67 @@
             border: 2px solid #61dafb;
             background-color: #000;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            max-width: 90vw;
-            max-height: 70vh;
+            max-width: min(90vw, 90vh);
+            max-height: min(90vw, 60vh);
+            touch-action: none;
+        }
+
+        /* ── MOBILE D-PAD ── */
+        #dpad {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            margin-top: 12px;
+        }
+
+        .dpad-row {
+            display: flex;
+            gap: 4px;
+        }
+
+        .dpad-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            background: #20232a;
+            border: 2px solid #61dafb;
+            border-radius: 10px;
+            color: #61dafb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            transition: background 0.1s;
+        }
+
+        .dpad-btn:active {
+            background: #61dafb;
+            color: #20232a;
+        }
+
+        .dpad-spacer {
+            width: 60px;
+            height: 60px;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5em; }
+            #scoreBoard { flex-direction: column; width: 90%; }
+            #dpad { display: flex; }
+        }
+
+        @media (pointer: coarse) {
+            #dpad { display: flex; }
         }
 
         #scoreTable { width: 100%; border-collapse: collapse; margin-top: 20px; }
         #scoreTable th, #scoreTable td { border: 1px solid #61dafb; padding: 8px; text-align: center; }
         #scoreTable th { background-color: #20232a; }
 
-        @media (max-width: 600px) {
-            h1 { font-size: 1.5em; }
-            #scoreBoard { flex-direction: column; width: 90%; }
-        }
     </style>
 </head>
 <body>
@@ -138,6 +187,25 @@
     </div>
 
     <canvas id="gameCanvas" style="display: none; touch-action: none;"></canvas>
+
+    <!-- Mobile D-Pad (player 1) -->
+    <div id="dpad" style="display: none;">
+        <div class="dpad-row">
+            <div class="dpad-spacer"></div>
+            <button class="dpad-btn" id="btn-up">▲</button>
+            <div class="dpad-spacer"></div>
+        </div>
+        <div class="dpad-row">
+            <button class="dpad-btn" id="btn-left">◄</button>
+            <div class="dpad-spacer"></div>
+            <button class="dpad-btn" id="btn-right">►</button>
+        </div>
+        <div class="dpad-row">
+            <div class="dpad-spacer"></div>
+            <button class="dpad-btn" id="btn-down">▼</button>
+            <div class="dpad-spacer"></div>
+        </div>
+    </div>
 
     <div id="gameOver" style="display: none;">
         <p>Meghaltál! 😢</p>
@@ -227,6 +295,14 @@
             document.getElementById('skinSelector').style.display = 'flex';
             document.getElementById('gameCanvas').style.display = 'block';
             
+            // Show D-pad on touch devices
+            const dpad = document.getElementById('dpad');
+            if (window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 600) {
+                dpad.style.display = 'flex';
+            } else {
+                dpad.style.display = 'none';
+            }
+            
             if (!isSinglePlayer) {
                 document.getElementById('player2Score').style.display = 'block';
                 document.getElementById('player2ColorLabel').style.display = 'block';
@@ -258,6 +334,7 @@
         }
 
         function showMenu() {
+            document.getElementById('dpad').style.display = 'none';
             location.reload(); // Egyszerűbb reset az iframe-es környezethez
         }
 
@@ -383,6 +460,31 @@
                 case 'd': if (dx2 === 0) { dx2 = 1; dy2 = 0; } break;
             }
         });
+
+        // D-pad controls (mobile)
+        document.getElementById('btn-up').addEventListener('click', () => { if (dy1 === 0) { dx1 = 0; dy1 = -1; } });
+        document.getElementById('btn-down').addEventListener('click', () => { if (dy1 === 0) { dx1 = 0; dy1 = 1; } });
+        document.getElementById('btn-left').addEventListener('click', () => { if (dx1 === 0) { dx1 = -1; dy1 = 0; } });
+        document.getElementById('btn-right').addEventListener('click', () => { if (dx1 === 0) { dx1 = 1; dy1 = 0; } });
+
+        // Swipe controls (mobile)
+        let touchStartX = 0, touchStartY = 0;
+        canvas.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        canvas.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (dx > 0) { if (dx1 === 0) { dx1 = 1; dy1 = 0; } }
+                else        { if (dx1 === 0) { dx1 = -1; dy1 = 0; } }
+            } else {
+                if (dy > 0) { if (dy1 === 0) { dx1 = 0; dy1 = 1; } }
+                else        { if (dy1 === 0) { dx1 = 0; dy1 = -1; } }
+            }
+        }, { passive: true });
 
         loadScores();
     </script>
