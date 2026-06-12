@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Varázs Színező</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%; height: 100dvh;
+            background: #0d0d1a;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: #e0e0f0;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        body { display: flex; flex-direction: column; }
+
+        /* ── TOP HUD ── */
+        #top-hud {
+            display: flex;
+            align-items: center;
+            padding: 7px 12px;
+            background: rgba(8,8,20,0.97);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            gap: 10px;
+            flex-shrink: 0;
+            min-height: 50px;
+        }
+
+        #hud-level {
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #aa66ff;
+            white-space: nowrap;
+            letter-spacing: 0.04em;
+        }
+
+        #hud-emoji { font-size: 1.4em; }
+
+        #progress-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        #progress-bar-bg {
+            background: rgba(255,255,255,0.07);
+            border-radius: 10px;
+            height: 7px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #aa66ff, #00f5ff);
+            border-radius: 10px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        #progress-text {
+            font-size: 0.62em;
+            color: #334;
+            letter-spacing: 0.05em;
+        }
+
+        .hud-btn {
+            padding: 5px 11px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: #556;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 0.73em;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            transition: all 0.18s;
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+        .hud-btn:hover, .hud-btn:active {
+            color: #aab;
+            background: rgba(255,255,255,0.09);
+            border-color: rgba(255,255,255,0.18);
+        }
+
+        #stars-display {
+            font-size: 1.1em;
+            letter-spacing: 2px;
+            color: #ffd700;
+        }
+
+        /* ── SVG AREA ── */
+        #svg-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            min-height: 0;
+        }
+
+        #coloring-svg {
+            width: 100%;
+            height: 100%;
+            max-width: 420px;
+            max-height: 100%;
+            display: block;
+            /* SVG element styles applied below */
+        }
+
+        /* All clickable SVG regions */
+        #coloring-svg [data-region] {
+            cursor: pointer;
+            stroke: #1a1a2e;
+            stroke-width: 1.8px;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+            transition: filter 0.1s, fill 0.25s ease;
+            fill: #d0d0d8;
+        }
+
+        #coloring-svg [data-region]:hover {
+            filter: brightness(1.15) drop-shadow(0 0 5px rgba(255,255,255,0.25));
+        }
+
+        #coloring-svg [data-region].correct-flash {
+            animation: correctFlash 0.5s ease;
+        }
+
+        @keyframes correctFlash {
+            0%   { filter: brightness(1.5) drop-shadow(0 0 8px #00ff88); }
+            100% { filter: brightness(1); }
+        }
+
+        #coloring-svg [data-region].wrong-flash {
+            animation: wrongFlash 0.4s ease;
+        }
+
+        @keyframes wrongFlash {
+            0%   { filter: brightness(0.5) drop-shadow(0 0 6px #ff0044); }
+            100% { filter: brightness(1); }
+        }
+
+        /* Decorative elements (no data-region, no click) */
+        #coloring-svg .deco {
+            fill: none;
+            stroke: #1a1a2e;
+            stroke-width: 1.5px;
+            pointer-events: none;
+        }
+
+        /* ── PALETTE BAR ── */
+        #palette-bar {
+            background: rgba(8,8,20,0.97);
+            border-top: 1px solid rgba(255,255,255,0.06);
+            padding: 8px 10px 10px;
+            flex-shrink: 0;
+        }
+
+        #palette-label {
+            font-size: 0.6em;
+            color: #2a2a40;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 7px;
+        }
+
+        #palette-swatches {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            justify-content: flex-start;
+        }
+
+        .swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.12);
+            transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+            touch-action: manipulation;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .swatch:hover { transform: scale(1.12); }
+
+        .swatch.active {
+            border-color: #fff;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.25), 0 0 12px var(--sc, rgba(255,255,255,0.3));
+            transform: scale(1.15);
+        }
+
+        .swatch.eraser {
+            background: #d0d0d8 !important;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        /* ── LEVEL SELECT SCREEN ── */
+        #level-select {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(160deg, #0d0d1a 0%, #1a0d2e 100%);
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 22px;
+            padding: 20px;
+        }
+
+        #level-select h1 {
+            font-size: clamp(1.6em, 6vw, 2.6em);
+            font-weight: 900;
+            background: linear-gradient(135deg, #aa66ff, #00f5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            letter-spacing: 0.06em;
+        }
+
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .level-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 14px 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+        .level-card:hover, .level-card:active {
+            background: rgba(170,102,255,0.1);
+            border-color: rgba(170,102,255,0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(170,102,255,0.15);
+        }
+        .level-card .lc-emoji { font-size: 2em; display: block; margin-bottom: 5px; }
+        .level-card .lc-name { font-size: 0.72em; font-weight: 700; color: #aab; }
+        .level-card .lc-diff {
+            font-size: 0.58em; color: #445; margin-top: 3px;
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .level-card .lc-stars { font-size: 0.8em; margin-top: 4px; color: #ffd700; }
+        .level-card.locked { opacity: 0.3; cursor: default; pointer-events: none; }
+
+        @media (max-width: 360px) {
+            .level-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* ── WIN MODAL ── */
+        #win-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.78);
+            backdrop-filter: blur(6px);
+            z-index: 40;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #win-modal.visible { display: flex; }
+
+        #win-box {
+            background: linear-gradient(160deg, #130d24, #0d0d1a);
+            border: 1px solid rgba(170,102,255,0.3);
+            border-radius: 22px;
+            padding: 32px 28px;
+            max-width: 340px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(170,102,255,0.2);
+        }
+
+        #win-emoji { font-size: 3.5em; margin-bottom: 8px; display: block; }
+
+        #win-title {
+            font-size: 1.8em;
+            font-weight: 900;
+            color: #aa66ff;
+            text-shadow: 0 0 25px #aa66ff;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        #win-sub {
+            color: #445;
+            font-size: 0.82em;
+            margin-bottom: 14px;
+        }
+
+        #win-stars {
+            font-size: 2.6em;
+            letter-spacing: 6px;
+            margin-bottom: 18px;
+            display: block;
+        }
+
+        .win-btn {
+            display: block;
+            width: 100%;
+            padding: 13px;
+            margin-top: 10px;
+            border-radius: 11px;
+            font-size: 1em;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            transition: all 0.18s;
+            touch-action: manipulation;
+        }
+
+        .win-btn.primary {
+            background: linear-gradient(135deg, #aa66ff, #7733dd);
+            border: none;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(170,102,255,0.35);
+        }
+        .win-btn.primary:hover { filter: brightness(1.15); }
+
+        .win-btn.secondary {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #556;
+        }
+        .win-btn.secondary:hover { color: #aab; border-color: rgba(255,255,255,0.2); }
+
+        /* ── HINT OVERLAY ── */
+        #hint-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+            transition: opacity 0.4s;
+            opacity: 0;
+        }
+        #hint-overlay.visible { opacity: 1; }
+
+        /* ── CONFETTI CANVAS ── */
+        #confetti-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 35;
+        }
+
+        /* ── TOOLTIP ── */
+        #color-tooltip {
+            position: fixed;
+            bottom: 96px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            color: #fff;
+            padding: 5px 14px;
+            border-radius: 100px;
+            font-size: 0.75em;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+        #color-tooltip.show { opacity: 1; }
+
+        /* ── COLOR NEEDED BADGE ── */
+        #needed-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 0.72em;
+            color: #778;
+            display: none;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @media (max-width: 400px) {
+            .swatch { width: 36px; height: 36px; }
+            #palette-swatches { gap: 5px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- CONFETTI -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- LEVEL SELECT -->
+<div id="level-select">
+    <h1>🎨 Varázs Színező</h1>
+    <p style="color:#2a2a45;font-size:0.8em;letter-spacing:0.08em;text-transform:uppercase;">Válassz pályát!</p>
+    <div class="level-grid" id="level-grid"></div>
+</div>
+
+<!-- TOP HUD (game) -->
+<div id="top-hud" style="display:none">
+    <span id="hud-emoji"></span>
+    <div class="progress-wrap" style="flex:1;display:flex;flex-direction:column;gap:3px">
+        <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+        <div id="progress-text">0 / 0 terület kiszínezve</div>
+    </div>
+    <span id="stars-display">☆☆☆</span>
+    <button class="hud-btn" id="btn-hint" title="Mutasd meg röviden a helyes színeket">💡 Tipp</button>
+    <button class="hud-btn" id="btn-levels">📋 Pályák</button>
+</div>
+
+<!-- SVG AREA (game) -->
+<div id="svg-area" style="display:none">
+    <svg id="coloring-svg" viewBox="0 0 360 420" preserveAspectRatio="xMidYMid meet"
+         xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="hint-overlay"></div>
+    <div id="needed-badge" id="needed-badge"></div>
+</div>
+
+<!-- PALETTE BAR (game) -->
+<div id="palette-bar" style="display:none">
+    <div id="palette-label">Szín kiválasztása → kattints a területre</div>
+    <div id="palette-swatches"></div>
+</div>
+
+<!-- WIN MODAL -->
+<div id="win-modal">
+    <div id="win-box">
+        <span id="win-emoji"></span>
+        <div id="win-title">Kész!</div>
+        <div id="win-sub"></div>
+        <span id="win-stars"></span>
+        <button class="win-btn primary" id="btn-next-level">Következő pálya →</button>
+        <button class="win-btn secondary" id="btn-retry">↺ Újra</button>
+        <button class="win-btn secondary" id="btn-to-levels">📋 Pályaválasztó</button>
+    </div>
+</div>
+
+<!-- TOOLTIP -->
+<div id="color-tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  VARÁZS SZÍNEZŐ — Paint-by-number / Coloring Game
+// ═══════════════════════════════════════════════════════
+
+// ── Level data ──────────────────────────────────────────
+
+const LEVELS = [
+
+  // ── LEVEL 1: NAPRAFORGÓ ────────────────────────────
+  {
+    name: 'Napraforgó', emoji: '🌻', difficulty: 'Könnyű',
+    regions: [
+      { id:'sky',    label:'Ég',      correct:'#87CEEB' },
+      { id:'ground', label:'Föld',    correct:'#8BC34A' },
+      { id:'stem',   label:'Szár',    correct:'#2E7D32' },
+      { id:'leaves', label:'Levelek', correct:'#4CAF50' },
+      { id:'petals', label:'Szirmok', correct:'#FDD835' },
+      { id:'center', label:'Közép',   correct:'#FF8F00' },
+      { id:'seeds',  label:'Magok',   correct:'#4E342E' },
+    ],
+    palette: [
+      { color:'#87CEEB', name:'Égkék' },
+      { color:'#8BC34A', name:'Fűzöld' },
+      { color:'#2E7D32', name:'Sötétzöld' },
+      { color:'#4CAF50', name:'Zöld' },
+      { color:'#FDD835', name:'Sárga' },
+      { color:'#FF8F00', name:'Narancs' },
+      { color:'#4E342E', name:'Barna' },
+    ],
+    svgContent: () => `
+      <rect data-region="sky"    x="0"   y="0"   width="360" height="420"/>
+      <rect data-region="ground" x="0"   y="335" width="360" height="85"/>
+      <rect data-region="stem"   x="176" y="200" width="8"   height="138" rx="3"/>
+      <path data-region="leaves" d="M176,272 C157,260 136,240 140,216 Q152,234 170,257 L178,270 Z"/>
+      <path data-region="leaves" d="M184,272 C203,260 224,240 220,216 Q208,234 190,257 L182,270 Z"/>
+      <!-- 8 petals, center=(180,185), offset=47, rx=27 ry=14 -->
+      <ellipse data-region="petals" cx="227" cy="185" rx="27" ry="14" transform="rotate(0,227,185)"/>
+      <ellipse data-region="petals" cx="213.2" cy="218.2" rx="27" ry="14" transform="rotate(45,213.2,218.2)"/>
+      <ellipse data-region="petals" cx="180" cy="232" rx="27" ry="14" transform="rotate(90,180,232)"/>
+      <ellipse data-region="petals" cx="146.8" cy="218.2" rx="27" ry="14" transform="rotate(135,146.8,218.2)"/>
+      <ellipse data-region="petals" cx="133" cy="185" rx="27" ry="14" transform="rotate(180,133,185)"/>
+      <ellipse data-region="petals" cx="146.8" cy="151.8" rx="27" ry="14" transform="rotate(225,146.8,151.8)"/>
+      <ellipse data-region="petals" cx="180" cy="138" rx="27" ry="14" transform="rotate(270,180,138)"/>
+      <ellipse data-region="petals" cx="213.2" cy="151.8" rx="27" ry="14" transform="rotate(315,213.2,151.8)"/>
+      <circle data-region="center" cx="180" cy="185" r="34"/>
+      <circle data-region="seeds"  cx="180" cy="185" r="22"/>
+      <!-- Decorative smile dots on seeds -->
+      <circle class="deco" cx="175" cy="180" r="3" fill="#1a1a2e" stroke="none"/>
+      <circle class="deco" cx="185" cy="180" r="3" fill="#1a1a2e" stroke="none"/>
+      <circle class="deco" cx="180" cy="190" r="3" fill="#1a1a2e" stroke="none"/>
+    `
+  },
+
+  // ── LEVEL 2: BÉKA ──────────────────────────────────
+  {
+    name: 'Béka', emoji: '🐸', difficulty: 'Könnyű',
+    regions: [
+      { id:'sky',     label:'Ég',        correct:'#87CEEB' },
+      { id:'water',   label:'Víz',       correct:'#1E88E5' },
+      { id:'lilypad', label:'Vízililiom',correct:'#4CAF50' },
+      { id:'body',    label:'Test',      correct:'#8BC34A' },
+      { id:'belly',   label:'Has',       correct:'#F9FBE7' },
+      { id:'eyes',    label:'Szemek',    correct:'#FFFFFF' },
+      { id:'pupils',  label:'Pupillák',  correct:'#1A1A1A' },
+      { id:'legs',    label:'Lábak',     correct:'#558B2F' },
+    ],
+    palette: [
+      { color:'#87CEEB', name:'Égkék' },
+      { color:'#1E88E5', name:'Vízkék' },
+      { color:'#4CAF50', name:'Liliom' },
+      { color:'#8BC34A', name:'Békazöld' },
+      { color:'#F9FBE7', name:'Krém' },
+      { color:'#FFFFFF', name:'Fehér' },
+      { color:'#1A1A1A', name:'Fekete' },
+      { color:'#558B2F', name:'Sötétzöld' },
+    ],
+    svgContent: () => `
+      <rect data-region="sky"   x="0" y="0"   width="360" height="175"/>
+      <rect data-region="water" x="0" y="165" width="360" height="255"/>
+      <!-- Lily pad -->
+      <ellipse data-region="lilypad" cx="180" cy="328" rx="88" ry="32"/>
+      <!-- Notch decoration on lily pad (deco only) -->
+      <path class="deco" d="M180,296 L180,328" stroke="#2E7D32" stroke-width="2" fill="none"/>
+      <!-- Frog legs (behind body) -->
+      <path data-region="legs" d="M128,295 Q105,318 98,342 Q116,334 132,310 Z"/>
+      <path data-region="legs" d="M232,295 Q255,318 262,342 Q244,334 228,310 Z"/>
+      <!-- Small front feet -->
+      <path data-region="legs" d="M140,282 Q118,278 110,265 Q125,258 142,272 Z"/>
+      <path data-region="legs" d="M220,282 Q242,278 250,265 Q235,258 218,272 Z"/>
+      <!-- Frog body -->
+      <ellipse data-region="body"  cx="180" cy="258" rx="62"  ry="50"/>
+      <ellipse data-region="belly" cx="180" cy="268" rx="40"  ry="32"/>
+      <!-- Eyes (white) -->
+      <circle data-region="eyes" cx="150" cy="214" r="20"/>
+      <circle data-region="eyes" cx="210" cy="214" r="20"/>
+      <!-- Pupils -->
+      <circle data-region="pupils" cx="155" cy="214" r="11"/>
+      <circle data-region="pupils" cx="205" cy="214" r="11"/>
+      <!-- Smile (deco) -->
+      <path class="deco" d="M160,278 Q180,294 200,278" stroke="#2E7D32" stroke-width="3" fill="none"/>
+      <!-- Nostril dots (deco) -->
+      <circle class="deco" cx="173" cy="238" r="3" fill="#2E7D32" stroke="none"/>
+      <circle class="deco" cx="187" cy="238" r="3" fill="#2E7D32" stroke="none"/>
+    `
+  },
+
+  // ── LEVEL 3: PILLANGÓ ──────────────────────────────
+  {
+    name: 'Pillangó', emoji: '🦋', difficulty: 'Közepes',
+    regions: [
+      { id:'sky',          label:'Ég',             correct:'#B3E5FC' },
+      { id:'meadow',       label:'Rét',            correct:'#A5D6A7' },
+      { id:'antennae',     label:'Csápok',         correct:'#5D4037' },
+      { id:'wing_upper',   label:'Felső szárnyak', correct:'#7B1FA2' },
+      { id:'wing_lower',   label:'Alsó szárnyak',  correct:'#CE93D8' },
+      { id:'wing_pattern', label:'Minta',          correct:'#E1BEE7' },
+      { id:'spots',        label:'Pontok',         correct:'#FFF176' },
+      { id:'body',         label:'Test',           correct:'#4E342E' },
+    ],
+    palette: [
+      { color:'#B3E5FC', name:'Égkék' },
+      { color:'#A5D6A7', name:'Rét' },
+      { color:'#5D4037', name:'Barna' },
+      { color:'#7B1FA2', name:'Lila' },
+      { color:'#CE93D8', name:'Halványlila' },
+      { color:'#E1BEE7', name:'Lilásrózsaszín' },
+      { color:'#FFF176', name:'Sárga' },
+      { color:'#4E342E', name:'Sötétbarna' },
+    ],
+    svgContent: () => `
+      <rect data-region="sky"    x="0" y="0"   width="360" height="300"/>
+      <rect data-region="meadow" x="0" y="290" width="360" height="130"/>
+      <!-- Antennae lines + tips -->
+      <path data-region="antennae" d="M180,162 C172,144 160,130 154,118" stroke="#5D4037" stroke-width="3" fill="none"/>
+      <circle data-region="antennae" cx="153" cy="116" r="5"/>
+      <path data-region="antennae" d="M180,162 C188,144 200,130 206,118" stroke="#5D4037" stroke-width="3" fill="none"/>
+      <circle data-region="antennae" cx="207" cy="116" r="5"/>
+      <!-- Upper wings -->
+      <path data-region="wing_upper" d="M180,200 C165,168 116,160 90,186 C66,212 76,252 103,264 C130,276 160,258 174,238 C178,252 180,238 180,220 Z"/>
+      <path data-region="wing_upper" d="M180,200 C195,168 244,160 270,186 C294,212 284,252 257,264 C230,276 200,258 186,238 C182,252 180,238 180,220 Z"/>
+      <!-- Lower wings -->
+      <path data-region="wing_lower" d="M180,226 C175,238 158,263 146,282 C130,300 108,288 105,270 C102,252 120,236 148,230 C162,240 174,244 180,234 Z"/>
+      <path data-region="wing_lower" d="M180,226 C185,238 202,263 214,282 C230,300 252,288 255,270 C258,252 240,236 212,230 C198,240 186,244 180,234 Z"/>
+      <!-- Wing inner pattern (lighter area) -->
+      <ellipse data-region="wing_pattern" cx="126" cy="210" rx="28" ry="22" transform="rotate(-25,126,210)"/>
+      <ellipse data-region="wing_pattern" cx="234" cy="210" rx="28" ry="22" transform="rotate(25,234,210)"/>
+      <ellipse data-region="wing_pattern" cx="133" cy="268" rx="20" ry="16" transform="rotate(-15,133,268)"/>
+      <ellipse data-region="wing_pattern" cx="227" cy="268" rx="20" ry="16" transform="rotate(15,227,268)"/>
+      <!-- Yellow spots -->
+      <circle data-region="spots" cx="104" cy="228" r="11"/>
+      <circle data-region="spots" cx="256" cy="228" r="11"/>
+      <circle data-region="spots" cx="118" cy="276" r="9"/>
+      <circle data-region="spots" cx="242" cy="276" r="9"/>
+      <!-- Body -->
+      <path data-region="body" d="M177,172 C175,190 174,218 174,252 C174,266 186,266 186,252 C186,218 185,190 183,172 C182,162 178,162 177,172 Z"/>
+      <circle data-region="body" cx="180" cy="168" r="11"/>
+    `
+  },
+
+  // ── LEVEL 4: HÁZ ──────────────────────────────────
+  {
+    name: 'Ház', emoji: '🏠', difficulty: 'Közepes',
+    regions: [
+      { id:'sky',      label:'Ég',       correct:'#81D4FA' },
+      { id:'sun',      label:'Nap',      correct:'#FFF176' },
+      { id:'clouds',   label:'Felhők',   correct:'#FFFFFF' },
+      { id:'ground',   label:'Fű',       correct:'#66BB6A' },
+      { id:'wall',     label:'Fal',      correct:'#FFF9C4' },
+      { id:'roof',     label:'Tető',     correct:'#E53935' },
+      { id:'door',     label:'Ajtó',     correct:'#795548' },
+      { id:'windows',  label:'Ablakok',  correct:'#B3E5FC' },
+      { id:'chimney',  label:'Kémény',   correct:'#78909C' },
+      { id:'smoke',    label:'Füst',     correct:'#E0E0E0' },
+    ],
+    palette: [
+      { color:'#81D4FA', name:'Égkék' },
+      { color:'#FFF176', name:'Sárga (nap)' },
+      { color:'#FFFFFF', name:'Fehér' },
+      { color:'#66BB6A', name:'Fű' },
+      { color:'#FFF9C4', name:'Krém' },
+      { color:'#E53935', name:'Piros' },
+      { color:'#795548', name:'Barna' },
+      { color:'#B3E5FC', name:'Ablakkék' },
+      { color:'#78909C', name:'Szürke' },
+      { color:'#E0E0E0', name:'Füst' },
+    ],
+    svgContent: () => `
+      <rect data-region="sky"    x="0" y="0"   width="360" height="420"/>
+      <rect data-region="ground" x="0" y="318" width="360" height="102"/>
+      <!-- Sun -->
+      <circle data-region="sun" cx="52" cy="58" r="36"/>
+      <!-- Sun rays (deco) -->
+      <line class="deco" x1="52" y1="14"  x2="52" y2="4"   stroke="#FDD835" stroke-width="3"/>
+      <line class="deco" x1="52" y1="102" x2="52" y2="112" stroke="#FDD835" stroke-width="3"/>
+      <line class="deco" x1="8"  y1="58"  x2="-2"  y2="58" stroke="#FDD835" stroke-width="3"/>
+      <line class="deco" x1="96" y1="58"  x2="106" y2="58" stroke="#FDD835" stroke-width="3"/>
+      <line class="deco" x1="22" y1="28"  x2="15"  y2="21" stroke="#FDD835" stroke-width="3"/>
+      <line class="deco" x1="82" y1="88"  x2="89"  y2="95" stroke="#FDD835" stroke-width="3"/>
+      <line class="deco" x1="82" y1="28"  x2="89"  y2="21" stroke="#FDD835" stroke-width="3"/>
+      <line class="deco" x1="22" y1="88"  x2="15"  y2="95" stroke="#FDD835" stroke-width="3"/>
+      <!-- Clouds -->
+      <ellipse data-region="clouds" cx="270" cy="68" rx="42" ry="22"/>
+      <ellipse data-region="clouds" cx="250" cy="74" rx="28" ry="20"/>
+      <ellipse data-region="clouds" cx="295" cy="74" rx="28" ry="19"/>
+      <ellipse data-region="clouds" cx="150" cy="95" rx="34" ry="18"/>
+      <ellipse data-region="clouds" cx="132" cy="100" rx="22" ry="16"/>
+      <ellipse data-region="clouds" cx="172" cy="100" rx="22" ry="15"/>
+      <!-- Chimney (behind roof) -->
+      <rect data-region="chimney" x="228" y="168" width="30" height="58"/>
+      <!-- Smoke -->
+      <ellipse data-region="smoke" cx="244" cy="148" rx="14" ry="10"/>
+      <ellipse data-region="smoke" cx="238" cy="132" rx="11" ry="8"/>
+      <ellipse data-region="smoke" cx="244" cy="118" rx="9"  ry="7"/>
+      <!-- Roof -->
+      <path data-region="roof" d="M72,232 L180,138 L288,232 Z"/>
+      <!-- Wall -->
+      <rect data-region="wall" x="95" y="228" width="170" height="95"/>
+      <!-- Door -->
+      <rect data-region="door"    x="155" y="272" width="50" height="51" rx="3"/>
+      <!-- Door handle (deco) -->
+      <circle class="deco" cx="198" cy="300" r="4" fill="#5D4037" stroke="#333" stroke-width="1"/>
+      <!-- Windows -->
+      <rect data-region="windows" x="104"  y="248" width="45" height="38" rx="3"/>
+      <rect data-region="windows" x="211"  y="248" width="45" height="38" rx="3"/>
+      <!-- Window cross (deco) -->
+      <line class="deco" x1="126.5" y1="248" x2="126.5" y2="286" stroke="#aaa" stroke-width="1.5"/>
+      <line class="deco" x1="104"   y1="267" x2="149"   y2="267" stroke="#aaa" stroke-width="1.5"/>
+      <line class="deco" x1="233.5" y1="248" x2="233.5" y2="286" stroke="#aaa" stroke-width="1.5"/>
+      <line class="deco" x1="211"   y1="267" x2="256"   y2="267" stroke="#aaa" stroke-width="1.5"/>
+    `
+  },
+
+  // ── LEVEL 5: TENGERI HAL ───────────────────────────
+  {
+    name: 'Tengeri Hal', emoji: '🐠', difficulty: 'Nehéz',
+    regions: [
+      { id:'water',       label:'Víz',        correct:'#0277BD' },
+      { id:'seafloor',    label:'Homok',      correct:'#F9A825' },
+      { id:'seaweed',     label:'Alga',       correct:'#2E7D32' },
+      { id:'coral',       label:'Korall',     correct:'#E53935' },
+      { id:'fish_body',   label:'Haltest',    correct:'#EF6C00' },
+      { id:'fish_stripe', label:'Csíkok',     correct:'#FFFFFF' },
+      { id:'fish_fins',   label:'Uszonyok',   correct:'#E65100' },
+      { id:'fish_tail',   label:'Farok',      correct:'#BF360C' },
+      { id:'fish_eye_w',  label:'Szem',       correct:'#FFFFFF' },
+      { id:'fish_eye_p',  label:'Pupilla',    correct:'#1A1A1A' },
+      { id:'bubbles',     label:'Buborékok',  correct:'#B3E5FC' },
+    ],
+    palette: [
+      { color:'#0277BD', name:'Mélyvíz' },
+      { color:'#F9A825', name:'Homok' },
+      { color:'#2E7D32', name:'Alga' },
+      { color:'#E53935', name:'Korall' },
+      { color:'#EF6C00', name:'Narancs' },
+      { color:'#FFFFFF', name:'Fehér' },
+      { color:'#E65100', name:'Sötétnarancs' },
+      { color:'#BF360C', name:'Sötétvörös' },
+      { color:'#1A1A1A', name:'Fekete' },
+      { color:'#B3E5FC', name:'Bubborék' },
+    ],
+    svgContent: () => `
+      <rect data-region="water" x="0" y="0" width="360" height="420"/>
+      <!-- Seafloor wavy -->
+      <path data-region="seafloor" d="M0,368 Q90,356 180,366 Q270,356 360,368 L360,420 L0,420 Z"/>
+      <!-- Seaweed left -->
+      <path data-region="seaweed" d="M45,368 Q36,344 45,318 Q54,292 42,266 Q30,240 42,214 L54,214 Q66,240 54,266 Q42,292 54,318 Q62,344 54,368 Z"/>
+      <!-- Seaweed right -->
+      <path data-region="seaweed" d="M305,368 Q296,344 305,318 Q314,292 302,266 Q290,240 302,214 L314,214 Q326,240 314,266 Q302,292 314,318 Q322,344 314,368 Z"/>
+      <!-- Coral center -->
+      <path data-region="coral" d="M168,368 L162,342 Q157,325 165,311 Q173,295 165,280 L176,280 Q184,295 176,311 Q168,325 172,342 L180,368 Z"/>
+      <path data-region="coral" d="M180,368 L180,335 Q180,318 190,306 Q200,318 200,335 L200,368 Z"/>
+      <path data-region="coral" d="M192,368 L188,342 Q183,325 191,311 Q199,295 191,280 L202,280 Q210,295 202,311 Q194,325 198,342 L204,368 Z"/>
+      <!-- Coral branches (deco) -->
+      <path class="deco" d="M165,308 Q155,295 148,288" stroke="#C62828" stroke-width="3" fill="none"/>
+      <path class="deco" d="M202,308 Q212,295 218,288" stroke="#C62828" stroke-width="3" fill="none"/>
+      <!-- Fish tail -->
+      <path data-region="fish_tail" d="M128,202 Q92,176 82,202 Q92,228 128,202"/>
+      <!-- Fish dorsal fin -->
+      <path data-region="fish_fins" d="M168,170 Q185,148 204,170"/>
+      <!-- Fish pectoral fin -->
+      <path data-region="fish_fins" d="M177,216 Q165,237 178,230"/>
+      <!-- Fish ventral fin -->
+      <path data-region="fish_fins" d="M198,218 Q205,235 215,222"/>
+      <!-- Fish body -->
+      <ellipse data-region="fish_body" cx="188" cy="200" rx="60" ry="33"/>
+      <!-- Stripes (white vertical bands on body) -->
+      <path data-region="fish_stripe" d="M163,174 C163,171 173,171 173,174 L173,226 C173,229 163,229 163,226 Z"/>
+      <path data-region="fish_stripe" d="M200,170 C200,167 210,167 210,170 L210,228 C210,231 200,231 200,228 Z"/>
+      <!-- Fish eye white -->
+      <circle data-region="fish_eye_w" cx="232" cy="188" r="13"/>
+      <!-- Fish eye pupil -->
+      <circle data-region="fish_eye_p" cx="235" cy="188" r="7"/>
+      <!-- Bubbles -->
+      <circle data-region="bubbles" cx="238" cy="168" r="7"/>
+      <circle data-region="bubbles" cx="246" cy="150" r="5"/>
+      <circle data-region="bubbles" cx="233" cy="135" r="6"/>
+      <circle data-region="bubbles" cx="248" cy="122" r="4"/>
+    `
+  },
+
+  // ── LEVEL 6: VÁR ──────────────────────────────────
+  {
+    name: 'Középkori Vár', emoji: '🏰', difficulty: 'Nehéz',
+    regions: [
+      { id:'sky',         label:'Ég',         correct:'#87CEEB' },
+      { id:'clouds',      label:'Felhők',     correct:'#FFFFFF' },
+      { id:'mountains',   label:'Hegyek',     correct:'#90A4AE' },
+      { id:'grass',       label:'Fű',         correct:'#66BB6A' },
+      { id:'moat',        label:'Várárok',    correct:'#1E88E5' },
+      { id:'wall_main',   label:'Főtorony',   correct:'#B0BEC5' },
+      { id:'wall_towers', label:'Oldaltornyok',correct:'#90A4AE' },
+      { id:'battlements', label:'Pártázat',   correct:'#78909C' },
+      { id:'gate_arch',   label:'Kapuzat',    correct:'#5D4037' },
+      { id:'gate_door',   label:'Kapu',       correct:'#3E2723' },
+      { id:'windows',     label:'Ablakok',    correct:'#FFF176' },
+      { id:'flag',        label:'Zászló',     correct:'#E53935' },
+      { id:'flag_pole',   label:'Zászlórúd',  correct:'#795548' },
+    ],
+    palette: [
+      { color:'#87CEEB', name:'Égkék' },
+      { color:'#FFFFFF', name:'Fehér' },
+      { color:'#90A4AE', name:'Kékesszürke' },
+      { color:'#66BB6A', name:'Fű' },
+      { color:'#1E88E5', name:'Víz' },
+      { color:'#B0BEC5', name:'Világosszürke' },
+      { color:'#78909C', name:'Szürke' },
+      { color:'#5D4037', name:'Barna' },
+      { color:'#3E2723', name:'Sötétbarna' },
+      { color:'#FFF176', name:'Sárga' },
+      { color:'#E53935', name:'Piros' },
+      { color:'#795548', name:'Rudabarna' },
+    ],
+    svgContent: () => `
+      <rect data-region="sky"  x="0" y="0" width="360" height="420"/>
+      <!-- Clouds -->
+      <ellipse data-region="clouds" cx="68"  cy="60" rx="38" ry="20"/>
+      <ellipse data-region="clouds" cx="48"  cy="66" rx="24" ry="18"/>
+      <ellipse data-region="clouds" cx="92"  cy="66" rx="26" ry="17"/>
+      <ellipse data-region="clouds" cx="288" cy="75" rx="35" ry="18"/>
+      <ellipse data-region="clouds" cx="268" cy="80" rx="22" ry="16"/>
+      <ellipse data-region="clouds" cx="312" cy="80" rx="22" ry="16"/>
+      <!-- Mountains background -->
+      <path data-region="mountains" d="M0,252 Q60,198 120,226 Q180,198 240,226 Q300,198 360,252 L360,312 L0,312 Z"/>
+      <!-- Grass -->
+      <rect data-region="grass" x="0" y="302" width="360" height="118"/>
+      <!-- Moat -->
+      <path data-region="moat" d="M20,342 Q180,326 340,342 L340,362 Q180,346 20,362 Z"/>
+      <!-- Bridge over moat (deco as part of grass?) - just draw over -->
+      <rect class="deco" x="157" y="340" width="46" height="22" fill="#8D6E63" stroke="#5D4037" stroke-width="1.5"/>
+      <!-- Side towers (drawn before main to go behind) -->
+      <rect data-region="wall_towers" x="58"  y="198" width="80" height="128"/>
+      <rect data-region="wall_towers" x="222" y="198" width="80" height="128"/>
+      <!-- Main keep -->
+      <rect data-region="wall_main" x="120" y="158" width="120" height="168"/>
+      <!-- Battlements - left tower top (4 merlons) -->
+      <rect data-region="battlements" x="62"  y="178" width="12" height="20"/>
+      <rect data-region="battlements" x="80"  y="178" width="12" height="20"/>
+      <rect data-region="battlements" x="98"  y="178" width="12" height="20"/>
+      <rect data-region="battlements" x="116" y="178" width="12" height="20"/>
+      <!-- Battlements - right tower top (4 merlons) -->
+      <rect data-region="battlements" x="226" y="178" width="12" height="20"/>
+      <rect data-region="battlements" x="244" y="178" width="12" height="20"/>
+      <rect data-region="battlements" x="262" y="178" width="12" height="20"/>
+      <rect data-region="battlements" x="280" y="178" width="12" height="20"/>
+      <!-- Battlements - main keep top (5 merlons) -->
+      <rect data-region="battlements" x="124" y="138" width="14" height="22"/>
+      <rect data-region="battlements" x="144" y="138" width="14" height="22"/>
+      <rect data-region="battlements" x="164" y="138" width="14" height="22"/>
+      <rect data-region="battlements" x="184" y="138" width="14" height="22"/>
+      <rect data-region="battlements" x="204" y="138" width="14" height="22"/>
+      <!-- Gate arch (brown frame) -->
+      <path data-region="gate_arch" fill-rule="evenodd"
+        d="M148,326 L148,268 C148,242 212,242 212,268 L212,326 Z
+           M160,326 L160,270 C160,252 200,252 200,270 L200,326 Z"/>
+      <!-- Gate door -->
+      <path data-region="gate_door" d="M160,326 L160,270 C160,252 200,252 200,270 L200,326 Z"/>
+      <!-- Windows - left tower -->
+      <rect data-region="windows" x="78"  y="222" width="22" height="26" rx="2"/>
+      <rect data-region="windows" x="78"  y="260" width="22" height="26" rx="2"/>
+      <!-- Windows - right tower -->
+      <rect data-region="windows" x="260" y="222" width="22" height="26" rx="2"/>
+      <rect data-region="windows" x="260" y="260" width="22" height="26" rx="2"/>
+      <!-- Windows - main keep -->
+      <rect data-region="windows" x="140" y="178" width="24" height="30" rx="2"/>
+      <rect data-region="windows" x="196" y="178" width="24" height="30" rx="2"/>
+      <!-- Flag pole -->
+      <rect data-region="flag_pole" x="179" y="102" width="4" height="58"/>
+      <!-- Flag -->
+      <path data-region="flag" d="M183,106 L183,130 L218,118 Z"/>
+    `
+  },
+
+];
+
+// ═══════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════
+
+let currentLevelIdx = 0;
+let regionColors    = {};   // { regionId: appliedColor }
+let selectedColor   = null;
+let mistakes        = 0;
+let hintsUsed       = 0;
+let bestStars       = JSON.parse(localStorage.getItem('szinezo_stars') || '{}');
+let hintTimer       = null;
+
+const svgEl         = document.getElementById('coloring-svg');
+const progressBar   = document.getElementById('progress-bar');
+const progressText  = document.getElementById('progress-text');
+const starsDisplay  = document.getElementById('stars-display');
+const winModal      = document.getElementById('win-modal');
+const paletteRow    = document.getElementById('palette-swatches');
+const tooltip       = document.getElementById('color-tooltip');
+
+// ═══════════════════════════════════════════════════════
+//  SCREENS
+// ═══════════════════════════════════════════════════════
+
+function showLevelSelect() {
+    winModal.classList.remove('visible');
+    document.getElementById('level-select').style.display = 'flex';
+    document.getElementById('top-hud').style.display      = 'none';
+    document.getElementById('svg-area').style.display     = 'none';
+    document.getElementById('palette-bar').style.display  = 'none';
+    buildLevelGrid();
+}
+
+function showGame() {
+    document.getElementById('level-select').style.display = 'none';
+    document.getElementById('top-hud').style.display      = 'flex';
+    document.getElementById('svg-area').style.display     = 'flex';
+    document.getElementById('palette-bar').style.display  = 'block';
+}
+
+function buildLevelGrid() {
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+    LEVELS.forEach((lv, i) => {
+        const best = bestStars[i] || 0;
+        const card = document.createElement('div');
+        card.className = 'level-card';
+        card.innerHTML = `
+            <span class="lc-emoji">${lv.emoji}</span>
+            <div class="lc-name">${lv.name}</div>
+            <div class="lc-diff">${lv.difficulty}</div>
+            <div class="lc-stars">${best > 0 ? '★'.repeat(best) + '☆'.repeat(3-best) : '☆☆☆'}</div>
+        `;
+        card.addEventListener('click', () => startLevel(i));
+        grid.appendChild(card);
+    });
+}
+
+// ═══════════════════════════════════════════════════════
+//  LEVEL LOAD
+// ═══════════════════════════════════════════════════════
+
+function startLevel(idx) {
+    currentLevelIdx = idx;
+    regionColors    = {};
+    mistakes        = 0;
+    hintsUsed       = 0;
+    selectedColor   = null;
+
+    const lv = LEVELS[idx];
+
+    // Build SVG
+    svgEl.innerHTML = lv.svgContent();
+
+    // Set all data-region elements to uncolored
+    svgEl.querySelectorAll('[data-region]').forEach(el => {
+        el.style.fill = '#d0d0d8';
+    });
+
+    // Decorative elements: no pointer events, transparent stroke unless specified
+    svgEl.querySelectorAll('.deco').forEach(el => {
+        el.style.pointerEvents = 'none';
+    });
+
+    // Attach click handlers
+    svgEl.querySelectorAll('[data-region]').forEach(el => {
+        el.addEventListener('click', onRegionClick);
+        el.addEventListener('touchend', onRegionTouch, { passive: false });
+    });
+
+    // Build palette
+    buildPalette(lv.palette);
+
+    // Update HUD
+    document.getElementById('hud-emoji').textContent = lv.emoji;
+    updateProgress();
+
+    showGame();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PALETTE
+// ═══════════════════════════════════════════════════════
+
+function buildPalette(colors) {
+    paletteRow.innerHTML = '';
+    // Eraser
+    const eraser = document.createElement('div');
+    eraser.className = 'swatch eraser';
+    eraser.textContent = '✕';
+    eraser.title = 'Radír';
+    eraser.addEventListener('click', () => selectColor(null, eraser));
+    eraser.addEventListener('touchend', e => { e.preventDefault(); selectColor(null, eraser); });
+    paletteRow.appendChild(eraser);
+
+    colors.forEach(c => {
+        const s = document.createElement('div');
+        s.className = 'swatch';
+        s.style.background = c.color;
+        s.style.setProperty('--sc', c.color + '66');
+        s.title = c.name;
+        s.dataset.color = c.color;
+
+        s.addEventListener('click', () => selectColor(c.color, s));
+        s.addEventListener('touchend', e => { e.preventDefault(); selectColor(c.color, s); });
+
+        // Tooltip on hover
+        s.addEventListener('mouseenter', () => showTooltip(c.name));
+        s.addEventListener('mouseleave', () => hideTooltip());
+
+        paletteRow.appendChild(s);
+    });
+}
+
+function selectColor(color, btn) {
+    selectedColor = color;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+}
+
+function showTooltip(name) {
+    tooltip.textContent = name;
+    tooltip.classList.add('show');
+}
+
+function hideTooltip() {
+    tooltip.classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════
+//  COLORING
+// ═══════════════════════════════════════════════════════
+
+function onRegionClick(e) {
+    const regionId = e.currentTarget.dataset.region;
+    applyColor(regionId);
+}
+
+function onRegionTouch(e) {
+    e.preventDefault();
+    const regionId = e.currentTarget.dataset.region;
+    applyColor(regionId);
+}
+
+function applyColor(regionId) {
+    if (!selectedColor) {
+        // Eraser
+        regionColors[regionId] = null;
+        svgEl.querySelectorAll(`[data-region="${regionId}"]`).forEach(el => {
+            el.style.fill = '#d0d0d8';
+        });
+        updateProgress();
+        return;
+    }
+
+    const lv     = LEVELS[currentLevelIdx];
+    const region = lv.regions.find(r => r.id === regionId);
+    if (!region) return;
+
+    const isCorrect = selectedColor === region.correct;
+    const wasCorrect = regionColors[regionId] === region.correct;
+
+    // Count a mistake if wrong color is applied (and it wasn't already wrong)
+    if (!isCorrect && !wasCorrect) mistakes++;
+
+    regionColors[regionId] = selectedColor;
+
+    // Apply fill to all matching elements
+    svgEl.querySelectorAll(`[data-region="${regionId}"]`).forEach(el => {
+        el.style.fill = selectedColor;
+        el.classList.remove('correct-flash', 'wrong-flash');
+        // Force reflow for animation restart
+        void el.offsetWidth;
+        el.classList.add(isCorrect ? 'correct-flash' : 'wrong-flash');
+    });
+
+    updateProgress();
+    updateStarsDisplay();
+
+    // Check win
+    if (isWin()) {
+        setTimeout(showWin, 700);
+    }
+}
+
+function isWin() {
+    const lv = LEVELS[currentLevelIdx];
+    return lv.regions.every(r => regionColors[r.id] === r.correct);
+}
+
+function updateProgress() {
+    const lv      = LEVELS[currentLevelIdx];
+    const total   = lv.regions.length;
+    const correct = lv.regions.filter(r => regionColors[r.id] === r.correct).length;
+    const pct     = total > 0 ? (correct / total) * 100 : 0;
+
+    progressBar.style.width = pct + '%';
+    progressText.textContent = `${correct} / ${total} terület helyes`;
+}
+
+function calcStars() {
+    if (mistakes === 0) return 3;
+    if (mistakes <= 3)  return 2;
+    return 1;
+}
+
+function updateStarsDisplay() {
+    const stars = calcStars();
+    starsDisplay.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+}
+
+// ═══════════════════════════════════════════════════════
+//  HINT
+// ═══════════════════════════════════════════════════════
+
+function showHint() {
+    hintsUsed++;
+    mistakes += 2; // hint costs 2 mistake points
+    updateStarsDisplay();
+
+    const lv = LEVELS[currentLevelIdx];
+
+    // Temporarily apply correct colors with opacity
+    svgEl.querySelectorAll('[data-region]').forEach(el => {
+        const regionId = el.dataset.region;
+        const region   = lv.regions.find(r => r.id === regionId);
+        if (!region) return;
+        // If not yet correct, flash the correct color at 60% opacity
+        if (regionColors[regionId] !== region.correct) {
+            el.style.fill   = region.correct;
+            el.style.opacity = '0.55';
+        }
+    });
+
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+        // Restore actual colors
+        svgEl.querySelectorAll('[data-region]').forEach(el => {
+            const regionId = el.dataset.region;
+            el.style.opacity = '1';
+            const applied = regionColors[regionId];
+            el.style.fill = applied || '#d0d0d8';
+        });
+    }, 2200);
+}
+
+// ═══════════════════════════════════════════════════════
+//  WIN / CELEBRATION
+// ═══════════════════════════════════════════════════════
+
+function showWin() {
+    const stars  = calcStars();
+    const lv     = LEVELS[currentLevelIdx];
+    const best   = bestStars[currentLevelIdx] || 0;
+    const isNew  = stars > best;
+
+    if (isNew) {
+        bestStars[currentLevelIdx] = stars;
+        localStorage.setItem('szinezo_stars', JSON.stringify(bestStars));
+    }
+
+    document.getElementById('win-emoji').textContent  = lv.emoji;
+    document.getElementById('win-title').textContent  = 'Remek munka!';
+    document.getElementById('win-sub').textContent    =
+        `${lv.name} – ${mistakes} hiba${isNew ? ' · Új rekord! 🎉' : ''}`;
+    document.getElementById('win-stars').textContent  = '★'.repeat(stars) + '☆'.repeat(3-stars);
+
+    const hasNext = currentLevelIdx < LEVELS.length - 1;
+    document.getElementById('btn-next-level').style.display = hasNext ? 'block' : 'none';
+
+    winModal.classList.add('visible');
+    launchConfetti();
+}
+
+// ── Confetti ────────────────────────────────────────────
+const confCvs = document.getElementById('confetti-canvas');
+const confCtx = confCvs.getContext('2d');
+let confetti  = [];
+let confRaf   = null;
+
+function launchConfetti() {
+    confCvs.width  = window.innerWidth;
+    confCvs.height = window.innerHeight;
+    confetti = [];
+    const colors = ['#aa66ff','#00f5ff','#FDD835','#E53935','#66BB6A','#FF8F00','#FFFFFF'];
+    for (let i = 0; i < 140; i++) {
+        confetti.push({
+            x:   Math.random() * confCvs.width,
+            y:   -10 - Math.random() * 120,
+            vx:  (Math.random() - 0.5) * 3.5,
+            vy:  2.5 + Math.random() * 3,
+            rot: Math.random() * 360,
+            rv:  (Math.random() - 0.5) * 8,
+            w:   7 + Math.random() * 8,
+            h:   4 + Math.random() * 5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            life: 1,
+        });
+    }
+    cancelAnimationFrame(confRaf);
+    confRaf = requestAnimationFrame(animConf);
+}
+
+function animConf() {
+    confCtx.clearRect(0, 0, confCvs.width, confCvs.height);
+    confetti.forEach(p => {
+        p.x   += p.vx;
+        p.y   += p.vy;
+        p.rot += p.rv;
+        p.vy  += 0.06;
+        if (p.y > confCvs.height + 20) p.life = 0;
+
+        confCtx.save();
+        confCtx.translate(p.x, p.y);
+        confCtx.rotate(p.rot * Math.PI / 180);
+        confCtx.fillStyle = p.color;
+        confCtx.globalAlpha = Math.min(1, p.life * 2);
+        confCtx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        confCtx.restore();
+    });
+    confetti = confetti.filter(p => p.life > 0);
+    if (confetti.length > 0) confRaf = requestAnimationFrame(animConf);
+    else confCtx.clearRect(0, 0, confCvs.width, confCvs.height);
+}
+
+// ═══════════════════════════════════════════════════════
+//  BUTTON WIRING
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('btn-hint').addEventListener('click', showHint);
+document.getElementById('btn-levels').addEventListener('click', () => {
+    clearTimeout(hintTimer);
+    showLevelSelect();
+});
+
+document.getElementById('btn-next-level').addEventListener('click', () => {
+    winModal.classList.remove('visible');
+    startLevel(currentLevelIdx + 1);
+});
+
+document.getElementById('btn-retry').addEventListener('click', () => {
+    winModal.classList.remove('visible');
+    startLevel(currentLevelIdx);
+});
+
+document.getElementById('btn-to-levels').addEventListener('click', () => {
+    winModal.classList.remove('visible');
+    showLevelSelect();
+});
+
+// ── Resize confetti canvas ──────────────────────────────
+window.addEventListener('resize', () => {
+    confCvs.width  = window.innerWidth;
+    confCvs.height = window.innerHeight;
+});
+
+// ── BOOT ────────────────────────────────────────────────
+showLevelSelect();
+</script>
+</body>
+</html>
