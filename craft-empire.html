@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Craft Empire — Minecraft Tycoon</title>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; height:100dvh; overflow:hidden; background:#07070f; }
+body {
+    font-family:'Segoe UI', system-ui, sans-serif;
+    color:#e0e0f0;
+    display:flex; flex-direction:column;
+    user-select:none; -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:none;
+}
+
+/* ── RESOURCE BAR ── */
+#res-bar {
+    display:flex; align-items:center;
+    padding:5px 8px;
+    background:rgba(5,5,14,0.98);
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    gap:5px; flex-shrink:0;
+    overflow-x:auto; scrollbar-width:none;
+    min-height:50px;
+}
+#res-bar::-webkit-scrollbar { display:none; }
+
+.rp {
+    display:flex; align-items:center; gap:4px;
+    padding:4px 9px;
+    background:rgba(255,255,255,0.035);
+    border:1px solid rgba(255,255,255,0.07);
+    border-radius:100px;
+    flex-shrink:0;
+}
+.rp-icon { font-size:.95em; }
+.rp-val  { font-size:.76em; font-weight:700; font-family:monospace; color:#bbc; min-width:28px; }
+.rp-rate { font-size:.58em; color:#2d3a2d; font-family:monospace; }
+.rp.active { border-color:rgba(0,245,255,0.25); }
+
+.hdr-btns { margin-left:auto; display:flex; gap:5px; flex-shrink:0; }
+.hdr-btn {
+    padding:4px 10px; border-radius:7px; font-size:.7em; font-weight:700;
+    border:1px solid rgba(255,255,255,0.09); background:rgba(255,255,255,0.04);
+    color:#445; cursor:pointer; transition:all .15s; touch-action:manipulation;
+}
+.hdr-btn:hover { color:#aab; background:rgba(255,255,255,0.1); }
+.hdr-btn.danger { border-color:rgba(255,60,60,.25); color:#c44; }
+.hdr-btn.danger:hover { background:rgba(255,40,40,.12); color:#f55; }
+
+/* ── DAY BADGE ── */
+#day-badge {
+    font-size:.62em; color:#2a3a2a; font-family:monospace;
+    padding:3px 8px; border:1px solid rgba(255,255,255,0.05);
+    border-radius:100px; flex-shrink:0; white-space:nowrap;
+}
+
+/* ── CANVAS WRAP ── */
+#canvas-wrap {
+    flex:1; position:relative; overflow:hidden; min-height:0;
+    background:#0c1118;
+}
+#world-canvas {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    cursor:default;
+    image-rendering:pixelated;
+}
+
+/* ── PLACING INDICATOR ── */
+#placing-bar {
+    position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    background:rgba(0,245,255,0.12); border:1px solid rgba(0,245,255,0.35);
+    color:#00f5ff; padding:5px 18px; border-radius:100px;
+    font-size:.73em; font-weight:600; letter-spacing:.06em;
+    pointer-events:none; z-index:12; display:none; white-space:nowrap;
+}
+body.placing #placing-bar { display:block; }
+body.placing #world-canvas { cursor:crosshair; }
+
+/* ── FLOAT LAYER ── */
+#float-layer { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.ft {
+    position:absolute;
+    font-size:.82em; font-weight:700; font-family:monospace;
+    pointer-events:none;
+    white-space:nowrap;
+    animation:ft-up 1.4s ease forwards;
+}
+@keyframes ft-up {
+    0%   { opacity:1; transform:translateY(0) scale(1); }
+    75%  { opacity:.8; }
+    100% { opacity:0; transform:translateY(-44px) scale(.85); }
+}
+
+/* ── TOAST ── */
+#toast-wrap {
+    position:fixed; bottom:228px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:5px; align-items:center;
+    z-index:60; pointer-events:none;
+}
+.toast {
+    padding:6px 18px; border-radius:100px; font-size:.75em; font-weight:600;
+    letter-spacing:.04em;
+    animation:t-in .2s ease, t-out .3s ease 2.1s forwards;
+}
+.toast.ok  { background:rgba(0,120,60,.92); border:1px solid rgba(0,255,120,.3); color:#fff; }
+.toast.err { background:rgba(160,20,30,.92); border:1px solid rgba(255,80,90,.3); color:#fff; }
+.toast.inf { background:rgba(0,80,180,.92); border:1px solid rgba(60,160,255,.3); color:#fff; }
+@keyframes t-in  { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none} }
+@keyframes t-out { from{opacity:1}to{opacity:0;transform:translateY(-8px)} }
+
+/* ── CELL INFO BAR ── */
+#cell-info {
+    background:rgba(5,5,14,0.98);
+    border-top:1px solid rgba(255,255,255,0.06);
+    border-bottom:1px solid rgba(255,255,255,0.04);
+    padding:5px 10px; flex-shrink:0;
+    min-height:48px; display:flex; align-items:center; gap:8px;
+}
+#ci-text { flex:1; min-width:0; }
+#ci-title { font-size:.8em; font-weight:700; color:#00f5ff; }
+#ci-desc  { font-size:.65em; color:#2d3a45; margin-top:1px; }
+#ci-actions { display:flex; gap:4px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+.ci-btn {
+    padding:5px 11px; border-radius:7px; font-size:.7em; font-weight:700;
+    border:1px solid rgba(255,255,255,0.09); background:rgba(255,255,255,0.035);
+    color:#445; cursor:pointer; transition:all .15s; touch-action:manipulation;
+    white-space:nowrap;
+}
+.ci-btn:hover:not(:disabled), .ci-btn:active:not(:disabled) { color:#bbd; background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.18); }
+.ci-btn.prim { color:#00f5ff; border-color:rgba(0,245,255,.25); background:rgba(0,245,255,.06); }
+.ci-btn.prim:hover { background:rgba(0,245,255,.13); }
+.ci-btn.good { color:#00ff88; border-color:rgba(0,255,136,.25); background:rgba(0,255,136,.05); }
+.ci-btn.good:hover { background:rgba(0,255,136,.12); }
+.ci-btn.warn { color:#ffaa00; border-color:rgba(255,170,0,.25); background:rgba(255,170,0,.05); }
+.ci-btn.warn:hover { background:rgba(255,170,0,.12); }
+.ci-btn.bad  { color:#ff5555; border-color:rgba(255,60,60,.25); background:rgba(255,40,40,.05); }
+.ci-btn.bad:hover { background:rgba(255,40,40,.12); }
+.ci-btn:disabled { opacity:.28; cursor:default; }
+
+/* ── BOTTOM PANEL ── */
+#bottom-panel { background:rgba(5,5,14,0.98); border-top:1px solid rgba(255,255,255,0.06); flex-shrink:0; display:flex; flex-direction:column; }
+
+#tab-bar { display:flex; border-bottom:1px solid rgba(255,255,255,0.05); flex-shrink:0; }
+.tab-btn {
+    flex:1; padding:6px 2px; border:none; background:transparent; color:#2a3040;
+    font-size:.67em; font-weight:700; letter-spacing:.04em; cursor:pointer;
+    transition:all .15s; border-bottom:2px solid transparent; touch-action:manipulation;
+}
+.tab-btn:hover { color:#556; }
+.tab-btn.active { color:#00f5ff; border-bottom-color:#00f5ff; }
+.tab-btn .ti { font-size:1.25em; display:block; }
+.tab-btn .tl { display:block; margin-top:1px; }
+
+#tab-content {
+    height:158px; overflow-y:auto; overflow-x:hidden;
+    padding:7px 8px 6px;
+    scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.08) transparent;
+}
+#tab-content::-webkit-scrollbar { width:3px; }
+#tab-content::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); border-radius:3px; }
+
+/* ── BUILD TAB ── */
+.bld-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:5px; }
+.bld-card {
+    background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07);
+    border-radius:9px; padding:7px 8px; cursor:pointer; transition:all .15s;
+    touch-action:manipulation; position:relative;
+}
+.bld-card:hover:not(.locked) { background:rgba(0,245,255,.05); border-color:rgba(0,245,255,.22); }
+.bld-card.selected-for-place { background:rgba(0,245,255,.1); border-color:rgba(0,245,255,.5); box-shadow:0 0 10px rgba(0,245,255,.12); }
+.bld-card.locked { opacity:.3; cursor:not-allowed; }
+.bld-card.poor   { opacity:.55; }
+.bc-head { display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+.bc-emoji { font-size:1.15em; }
+.bc-name  { font-size:.69em; font-weight:700; color:#bbc; line-height:1.2; }
+.bc-cost  { font-size:.58em; color:#2a3a2a; font-family:monospace; line-height:1.5; }
+.bc-cost .cv { color:#445; }
+.bc-lock-msg { font-size:.58em; color:#553; }
+.bc-prod  { font-size:.58em; color:#2d502d; font-family:monospace; margin-top:2px; }
+
+/* ── WORKERS TAB ── */
+.wr-row {
+    display:flex; align-items:center; gap:7px;
+    padding:6px 2px; border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.wr-row:last-child { border-bottom:none; }
+.wr-emoji { font-size:1.1em; flex-shrink:0; }
+.wr-info  { flex:1; min-width:0; }
+.wr-name  { font-size:.74em; font-weight:700; color:#aab; }
+.wr-pos   { font-size:.62em; color:#2d3a2d; font-family:monospace; }
+.wr-ctrl  { display:flex; align-items:center; gap:4px; }
+.wr-nb {
+    width:26px; height:26px; border-radius:50%;
+    border:1px solid rgba(255,255,255,.09); background:rgba(255,255,255,.04);
+    color:#556; font-size:1em; cursor:pointer; display:flex;
+    align-items:center; justify-content:center; transition:all .15s;
+    touch-action:manipulation; line-height:1;
+}
+.wr-nb:hover:not(:disabled) { background:rgba(255,255,255,.12); color:#bbd; }
+.wr-nb:disabled { opacity:.2; cursor:default; }
+.wr-cnt { font-size:.8em; font-family:monospace; color:#00f5ff; min-width:22px; text-align:center; font-weight:700; }
+.worker-summary {
+    font-size:.68em; color:#2a3040; font-family:monospace;
+    text-align:center; padding:4px 0 2px; border-bottom:1px solid rgba(255,255,255,0.04);
+    margin-bottom:4px;
+}
+
+/* ── RESEARCH TAB ── */
+.res-cards { display:flex; flex-direction:column; gap:4px; }
+.res-card {
+    display:flex; align-items:center; gap:7px; padding:7px 9px;
+    background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07);
+    border-radius:9px; cursor:pointer; transition:all .15s; touch-action:manipulation;
+}
+.res-card.done   { border-color:rgba(0,255,136,.2); background:rgba(0,255,136,.035); cursor:default; }
+.res-card.locked { opacity:.28; cursor:not-allowed; pointer-events:none; }
+.res-card:not(.done):not(.locked):hover { background:rgba(170,102,255,.07); border-color:rgba(170,102,255,.28); }
+.rc-icon { font-size:1.2em; flex-shrink:0; }
+.rc-body { flex:1; min-width:0; }
+.rc-name { font-size:.73em; font-weight:700; color:#bbc; }
+.rc-desc { font-size:.61em; color:#2d3a45; margin-top:1px; }
+.rc-cost { font-size:.58em; color:#2a3a2a; font-family:monospace; margin-top:2px; }
+.rc-done-badge { font-size:.65em; color:#00ff88; font-weight:700; flex-shrink:0; }
+.res-card.poor:not(.done) .rc-name { color:#554; }
+
+/* ── STATS TAB ── */
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+.stat-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:7px 10px; }
+.sc-label { font-size:.6em; color:#2a3040; letter-spacing:.07em; text-transform:uppercase; }
+.sc-val   { font-size:.9em; font-family:monospace; font-weight:700; color:#ccd; margin-top:1px; }
+.sc-rate  { font-size:.58em; color:#2d3a2d; font-family:monospace; }
+
+/* ── WIN MODAL ── */
+#win-modal {
+    position:fixed; inset:0; background:rgba(0,0,0,.82);
+    backdrop-filter:blur(7px); z-index:80;
+    display:none; align-items:center; justify-content:center; padding:20px;
+}
+#win-modal.show { display:flex; }
+#win-box {
+    background:linear-gradient(155deg,#0d0d20,#07070f);
+    border:1px solid rgba(170,102,255,.4); border-radius:22px;
+    padding:34px 26px; max-width:340px; width:100%;
+    text-align:center; box-shadow:0 0 80px rgba(170,102,255,.2);
+}
+.wm-emoji { font-size:3.8em; display:block; margin-bottom:10px; }
+.wm-title { font-size:2em; font-weight:900; color:#aa66ff; text-shadow:0 0 28px #aa66ff; letter-spacing:.08em; margin-bottom:6px; }
+.wm-sub   { color:#334; font-size:.82em; margin-bottom:14px; }
+.wm-stats { font-size:.82em; font-family:monospace; color:#aab; margin-bottom:20px; line-height:1.8; }
+.wm-btn {
+    display:block; width:100%; padding:13px; border-radius:11px;
+    font-size:.95em; font-weight:700; letter-spacing:.06em; cursor:pointer;
+    transition:all .18s; touch-action:manipulation; margin-bottom:9px;
+    background:linear-gradient(135deg,#aa66ff,#7733cc); border:none; color:#fff;
+    box-shadow:0 4px 20px rgba(170,102,255,.3);
+}
+.wm-btn:hover { filter:brightness(1.15); }
+.wm-btn.sec { background:transparent; border:1px solid rgba(255,255,255,.09); color:#445; box-shadow:none; }
+.wm-btn.sec:hover { color:#aab; background:rgba(255,255,255,.07); }
+
+/* ── CONFETTI ── */
+#confetti { position:fixed; inset:0; pointer-events:none; z-index:70; }
+
+@media (max-width:420px) {
+    .bld-grid { grid-template-columns:repeat(2,1fr); }
+    .stats-grid { grid-template-columns:1fr; }
+    #tab-content { height:148px; }
+}
+@media (max-height:640px) {
+    #tab-content { height:130px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Resource Bar -->
+<div id="res-bar">
+    <div class="rp" id="rp-coins" title="Érmék"><span class="rp-icon">🪙</span><span class="rp-val" id="rv-coins">200</span><span class="rp-rate" id="rr-coins"></span></div>
+    <div class="rp" id="rp-wood"  title="Fa">   <span class="rp-icon">🪵</span><span class="rp-val" id="rv-wood">0</span>  <span class="rp-rate" id="rr-wood"></span></div>
+    <div class="rp" id="rp-stone" title="Kő">   <span class="rp-icon">🪨</span><span class="rp-val" id="rv-stone">0</span> <span class="rp-rate" id="rr-stone"></span></div>
+    <div class="rp" id="rp-iron"  title="Vas">  <span class="rp-icon">⚙️</span><span class="rp-val" id="rv-iron">0</span>  <span class="rp-rate" id="rr-iron"></span></div>
+    <div class="rp" id="rp-gold"  title="Arany"><span class="rp-icon">⭐</span><span class="rp-val" id="rv-gold">0</span>  <span class="rp-rate" id="rr-gold"></span></div>
+    <div class="rp" id="rp-diamond" title="Gyémánt"><span class="rp-icon">💎</span><span class="rp-val" id="rv-diamond">0</span><span class="rp-rate" id="rr-diamond"></span></div>
+    <span id="day-badge">Nap 1</span>
+    <div class="hdr-btns">
+        <button class="hdr-btn" id="btn-save"  title="Mentés">💾 Mentés</button>
+        <button class="hdr-btn danger" id="btn-new" title="Új játék">🔄 Új</button>
+    </div>
+</div>
+
+<!-- Canvas -->
+<div id="canvas-wrap">
+    <canvas id="world-canvas"></canvas>
+    <div id="float-layer"></div>
+    <div id="placing-bar">Kattints az elhelyezéshez &nbsp;·&nbsp; ESC = Mégse</div>
+</div>
+
+<!-- Cell Info -->
+<div id="cell-info">
+    <div id="ci-text">
+        <div id="ci-title">Kattints egy mezőre!</div>
+        <div id="ci-desc">Fákra és kövekre kattintva nyersanyagokat gyűjthetsz.</div>
+    </div>
+    <div id="ci-actions"></div>
+</div>
+
+<!-- Bottom Panel -->
+<div id="bottom-panel">
+    <div id="tab-bar">
+        <button class="tab-btn active" data-tab="build" ><span class="ti">🔨</span><span class="tl">Építés</span></button>
+        <button class="tab-btn"        data-tab="workers"><span class="ti">👷</span><span class="tl">Munkás</span></button>
+        <button class="tab-btn"        data-tab="research"><span class="ti">🔬</span><span class="tl">Kutatás</span></button>
+        <button class="tab-btn"        data-tab="stats"  ><span class="ti">📊</span><span class="tl">Statiszt.</span></button>
+    </div>
+    <div id="tab-content"></div>
+</div>
+
+<!-- Toast + Confetti + Win -->
+<div id="toast-wrap"></div>
+<canvas id="confetti"></canvas>
+<div id="win-modal">
+    <div id="win-box">
+        <span class="wm-emoji">🏰</span>
+        <div class="wm-title">GYŐZELEM!</div>
+        <div class="wm-sub">Felépítetted a Kastélyt! Craft Empire meghódítva.</div>
+        <div class="wm-stats" id="wm-stats"></div>
+        <button class="wm-btn" id="btn-prestige">⭐ Presztízs újraindítás (+10% bónusz)</button>
+        <button class="wm-btn sec" id="btn-continue">Folytatás szabadon</button>
+    </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+//  CRAFT EMPIRE  ·  Full Minecraft-style Tycoon
+// ═══════════════════════════════════════════════════════════
+
+// ── Grid ──────────────────────────────────────────────────
+const COLS = 13, ROWS = 8;
+const MIN_CELL = 30, MAX_CELL = 60;
+
+// ── Grass palette (positional variation) ──────────────────
+const GRASS_PAL = ['#3a7a3a','#3e7e3e','#428242','#407f40','#3b7d3b','#3d7f3d'];
+
+// ── Building Definitions ──────────────────────────────────
+const BDEF = {
+  WOODCUTTER:   { name:'Favágó Kunyhó',   emoji:'🪓', desc:'Automatikusan fát termel.',             baseProd:{wood:0.8},    cost:{coins:60},                             upgCost:lv=>({coins:Math.round(80*2.1**lv),  wood:Math.round(15*1.9**lv)}),            maxLevel:5, maxWorkers:3, workerBonus:.45, col:'#8D6E63', pCol:'#795548' },
+  QUARRY:       { name:'Kőbánya',         emoji:'⛏️', desc:'Követ bányász automatikusan.',          baseProd:{stone:.5},    cost:{coins:150,wood:20},                    upgCost:lv=>({coins:Math.round(200*2.1**lv), stone:Math.round(20*1.8**lv)}),           maxLevel:5, maxWorkers:3, workerBonus:.40, col:'#78909C', pCol:'#607D8B' },
+  IRON_MINE:    { name:'Vasbánya',         emoji:'⚙️', desc:'Vasat bányász automatikusan.',          baseProd:{iron:.25},    cost:{coins:500,stone:60},                   upgCost:lv=>({coins:Math.round(600*2.1**lv), stone:Math.round(50*1.8**lv),iron:Math.round(10*1.6**lv)}), maxLevel:5, maxWorkers:3, workerBonus:.40, col:'#546E7A', pCol:'#455A64' },
+  GOLD_MINE:    { name:'Aranybánya',       emoji:'⭐', desc:'Aranyat bányász automatikusan.',        baseProd:{gold:.08},    cost:{coins:2500,stone:200,iron:50},          upgCost:lv=>({coins:Math.round(3000*2.1**lv),iron:Math.round(40*1.8**lv),gold:Math.round(5*1.6**lv)}),  maxLevel:5, maxWorkers:3, workerBonus:.40, col:'#F9A825', pCol:'#F57F17' },
+  DIAMOND_MINE: { name:'Gyémántbánya',     emoji:'💎', desc:'Gyémántot bányász automatikusan.',      baseProd:{diamond:.02}, cost:{coins:12000,stone:600,iron:250,gold:40},upgCost:lv=>({coins:Math.round(14000*2**lv),  iron:Math.round(150*1.6**lv),gold:Math.round(20*1.6**lv),diamond:Math.round(2*1.5**lv)}), maxLevel:5, maxWorkers:3, workerBonus:.40, col:'#0277BD', pCol:'#01579B' },
+  MARKET:       { name:'Piac',             emoji:'🏪', desc:'Érmét termel automatikusan.',           baseProd:{coins:3},     cost:{coins:300,wood:30,stone:20},           upgCost:lv=>({coins:Math.round(400*2.1**lv), wood:Math.round(25*1.8**lv),stone:Math.round(15*1.6**lv)}),maxLevel:5, maxWorkers:3, workerBonus:.40, col:'#C62828', pCol:'#B71C1C' },
+  HOUSE:        { name:'Ház',              emoji:'🏠', desc:'Munkáslétszámot növeli (+4 szintenként).', baseProd:{}, workerCap:4, cost:{coins:120,wood:25,stone:10},       upgCost:lv=>({coins:Math.round(150*2**lv),   wood:Math.round(30*1.9**lv),stone:Math.round(15*1.6**lv)}),maxLevel:5, maxWorkers:0, col:'#5D4037', pCol:'#4E342E' },
+  FARM:         { name:'Farm',             emoji:'🌾', desc:'Globálisan növeli a termelést (+15% szintenként).', baseProd:{}, farmBonus:.15, cost:{coins:500,wood:60,stone:30}, upgCost:lv=>({coins:Math.round(600*2.1**lv),wood:Math.round(55*1.8**lv),stone:Math.round(25*1.6**lv)}), maxLevel:4, maxWorkers:0, col:'#558B2F', pCol:'#33691E' },
+  WORKSHOP:     { name:'Műhely',           emoji:'🔬', desc:'Kutatásokat tesz lehetővé.',            baseProd:{}, cost:{coins:1000,wood:100,stone:80,iron:20},          upgCost:lv=>({coins:Math.round(1200*2.1**lv),wood:Math.round(80*1.8**lv),stone:Math.round(60*1.5**lv),iron:Math.round(15*1.5**lv)}),maxLevel:3, maxWorkers:2, workerBonus:.3, col:'#37474F', pCol:'#263238' },
+  CASTLE:       { name:'Kastély',          emoji:'🏰', desc:'A végső cél — megnyered a játékot!',   baseProd:{}, cost:{coins:50000,wood:2000,stone:2000,iron:500,gold:200,diamond:50}, upgCost:()=>({}), maxLevel:1, maxWorkers:0, col:'#546E7A', pCol:'#455A64', isGoal:true },
+};
+
+const BUILD_ORDER = ['WOODCUTTER','QUARRY','IRON_MINE','GOLD_MINE','DIAMOND_MINE','MARKET','HOUSE','FARM','WORKSHOP','CASTLE'];
+
+// ── Research Definitions ──────────────────────────────────
+const RDEF = [
+  { id:'sharpAxe',   name:'Éles Fejsze',           emoji:'🪓', desc:'+60% fa termelés',        eff:'woodMult',    val:1.6,  cost:{coins:500, wood:100},                           req:[] },
+  { id:'stoneMason', name:'Kőfaragó Mester',        emoji:'🪨', desc:'+60% kő termelés',        eff:'stoneMult',   val:1.6,  cost:{coins:800, stone:80},                           req:[] },
+  { id:'railSystem', name:'Sínpálya Rendszer',      emoji:'🚂', desc:'+100% vas termelés',      eff:'ironMult',    val:2.0,  cost:{coins:3000,stone:200,iron:50},                  req:['stoneMason'] },
+  { id:'treasureMap',name:'Kincsvadász Térkép',     emoji:'🗺️', desc:'+150% arany termelés',    eff:'goldMult',    val:2.5,  cost:{coins:8000,iron:200,gold:30},                   req:['railSystem'] },
+  { id:'gemExpert',  name:'Drágakővész',            emoji:'💎', desc:'+200% gyémánt termelés',  eff:'diamondMult', val:3.0,  cost:{coins:20000,iron:500,gold:100,diamond:5},        req:['treasureMap'] },
+  { id:'tradeEmpire',name:'Kereskedelmi Birodalom', emoji:'🏪', desc:'+100% piac bevétel',      eff:'marketMult',  val:2.0,  cost:{coins:2000,wood:50,stone:50},                   req:[] },
+  { id:'workerTrain',name:'Munkásképzés Program',   emoji:'👷', desc:'Munkás bónusz +75%',      eff:'workerMult',  val:1.75, cost:{coins:4000,wood:200,stone:100},                 req:[] },
+  { id:'deepDig',    name:'Mélybányászat',          emoji:'⛏️', desc:'Minden bányász +30%',     eff:'mineMult',    val:1.3,  cost:{coins:6000,stone:400,iron:150},                 req:['railSystem'] },
+  { id:'automation', name:'Ipari Automatizáció',    emoji:'🤖', desc:'Minden termelés +25%',    eff:'globalMult',  val:1.25, cost:{coins:10000,stone:400,iron:200},                req:['railSystem','workerTrain'] },
+  { id:'mastercraft',name:'Mesterszakma',           emoji:'👑', desc:'Minden termelés +50%',    eff:'globalMult2', val:1.5,  cost:{coins:30000,wood:1000,stone:1000,iron:400,gold:60}, req:['automation','gemExpert','tradeEmpire'] },
+];
+
+// ── Game State ────────────────────────────────────────────
+let res, world, workersTotal, workersFree, doneRes, selectedCell, placingType, activeTab, dayTime, totalDays, prestige, won, lastTs, autoSaveT, rates, mults;
+
+function initState(prestVal = 0) {
+  res          = { coins:200, wood:0, stone:0, iron:0, gold:0, diamond:0 };
+  world        = Array.from({ length: COLS * ROWS }, () => ({ type:'EMPTY', level:1, workers:0, charges:0 }));
+  workersTotal = 5;
+  workersFree  = 5;
+  doneRes      = new Set();
+  selectedCell = -1;
+  placingType  = null;
+  activeTab    = 'build';
+  dayTime      = 0;
+  totalDays    = 1;
+  prestige     = prestVal;
+  won          = false;
+  lastTs       = 0;
+  autoSaveT    = 0;
+  rates        = {};
+  mults        = {};
+  generateWorld();
+  computeMults();
+}
+
+// ── Canvas ────────────────────────────────────────────────
+const cvs = document.getElementById('world-canvas');
+const ctx = cvs.getContext('2d');
+let CELL = 48, hoverCell = -1;
+
+// ── Helpers ───────────────────────────────────────────────
+function fmt(n) {
+  n = Math.floor(n);
+  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e4) return (n/1e3).toFixed(1)+'K';
+  return n.toLocaleString('hu');
+}
+function fmtR(n) {
+  if (Math.abs(n) < 0.01) return '';
+  return (n >= 0 ? '+' : '') + n.toFixed(2) + '/s';
+}
+function canAfford(cost) { return Object.entries(cost).every(([k,v]) => (res[k]||0) >= v); }
+function deduct(cost)    { Object.entries(cost).forEach(([k,v]) => { res[k] = Math.max(0,(res[k]||0)-v); }); }
+function clamp(v,mn,mx)  { return Math.max(mn,Math.min(mx,v)); }
+
+function shuffle(arr) {
+  for (let i = arr.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+  return arr;
+}
+
+// ── World Generation ──────────────────────────────────────
+function generateWorld() {
+  const inner = [];
+  for (let r = 1; r < ROWS-1; r++)
+    for (let c = 1; c < COLS-1; c++)
+      inner.push(r*COLS+c);
+  shuffle(inner);
+  let ti=0, ri=0;
+  const trees  = 9, rocks = 7;
+  inner.forEach(idx => {
+    if      (ti < trees  && Math.random() < .55) { world[idx] = { type:'TREE',  level:1, workers:0, charges:3 }; ti++; }
+    else if (ri < rocks  && Math.random() < .45) { world[idx] = { type:'ROCK',  level:1, workers:0, charges:3 }; ri++; }
+  });
+}
+
+// ── Multiplier Computation ────────────────────────────────
+function computeMults() {
+  mults = {};
+  RDEF.forEach(r => {
+    mults[r.eff] = doneRes.has(r.id) ? r.val : 1;
+  });
+}
+
+function totalFarmBonus() {
+  return world.reduce((s, c) => {
+    if (c.type !== 'FARM') return s;
+    return s + (BDEF.FARM.farmBonus * c.level);
+  }, 0);
+}
+
+function hasWorkshop() { return world.some(c => c.type === 'WORKSHOP'); }
+
+function workerCapacity() {
+  return world.reduce((s, c) => {
+    if (c.type !== 'HOUSE') return s;
+    return s + BDEF.HOUSE.workerCap * c.level;
+  }, workersTotal);
+}
+
+// ── Production Rate ───────────────────────────────────────
+function cellRate(cell) {
+  const bdef = BDEF[cell.type];
+  if (!bdef || !bdef.baseProd || Object.keys(bdef.baseProd).length === 0) return {};
+
+  const fm   = 1 + totalFarmBonus();
+  const wm   = mults.workerMult || 1;
+  const gm   = (mults.globalMult || 1) * (mults.globalMult2 || 1);
+  const pm   = 1 + prestige * 0.1;
+  const wb   = bdef.workerBonus || 0.4;
+  const workerFactor = 1 + cell.workers * wb * wm;
+
+  const result = {};
+  Object.entries(bdef.baseProd).forEach(([rk, base]) => {
+    let rm = 1;
+    if (cell.type === 'WOODCUTTER'   && rk === 'wood')    rm = mults.woodMult    || 1;
+    if (cell.type === 'QUARRY'       && rk === 'stone')   rm = mults.stoneMult   || 1;
+    if (cell.type === 'IRON_MINE'    && rk === 'iron')    { rm = (mults.ironMult||1) * (mults.mineMult||1); }
+    if (cell.type === 'GOLD_MINE'    && rk === 'gold')    { rm = (mults.goldMult||1) * (mults.mineMult||1); }
+    if (cell.type === 'DIAMOND_MINE' && rk === 'diamond') { rm = (mults.diamondMult||1) * (mults.mineMult||1); }
+    if (cell.type === 'MARKET'       && rk === 'coins')   rm = mults.marketMult  || 1;
+    result[rk] = base * cell.level * workerFactor * fm * rm * gm * pm;
+  });
+  return result;
+}
+
+function computeRates() {
+  rates = {};
+  world.forEach(c => {
+    const r = cellRate(c);
+    Object.entries(r).forEach(([k,v]) => { rates[k] = (rates[k]||0)+v; });
+  });
+}
+
+// ── Game Loop ─────────────────────────────────────────────
+let raf;
+function gameLoop(ts) {
+  raf = requestAnimationFrame(gameLoop);
+  const dt = lastTs ? Math.min((ts - lastTs)/1000, 0.1) : 0;
+  lastTs = ts;
+
+  if (dt > 0) {
+    // Update production
+    computeRates();
+    world.forEach(c => {
+      const r = cellRate(c);
+      Object.entries(r).forEach(([k,v]) => { res[k] = Math.max(0, (res[k]||0) + v*dt); });
+    });
+
+    // Day/night cycle (120s full cycle)
+    dayTime = (dayTime + dt/120) % 1;
+    if (Math.floor((dayTime + dt/120)*120/60) !== Math.floor(dayTime*120/60) || (totalDays === 1 && dayTime < 0.01)) {
+      // Approximately once per in-game day (60s)
+    }
+    // Day counter roughly every 60s real time
+    autoSaveT += dt;
+    if (autoSaveT >= 60) { autoSave(); autoSaveT = 0; }
+
+    // Resource bar update (every frame is fine, DOM is fast)
+    updateResBar();
+  }
+
+  // Canvas always
+  renderCanvas(ts);
+  checkWin();
+}
+
+// ── Win Check ─────────────────────────────────────────────
+function checkWin() {
+  if (won) return;
+  if (world.some(c => c.type === 'CASTLE')) {
+    won = true;
+    document.getElementById('wm-stats').innerHTML =
+      `🪙 ${fmt(res.coins)} érme &nbsp;·&nbsp; 🪵 ${fmt(res.wood)} fa<br>🪨 ${fmt(res.stone)} kő &nbsp;·&nbsp; ⚙️ ${fmt(res.iron)} vas<br>⭐ ${fmt(res.gold)} arany &nbsp;·&nbsp; 💎 ${fmt(res.diamond)} gyémánt<br>🗓️ Napok: ${totalDays} &nbsp;·&nbsp; 🏆 Presztízs: ${prestige}`;
+    launchConfetti();
+    setTimeout(() => document.getElementById('win-modal').classList.add('show'), 1200);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CANVAS RENDERING
+// ═══════════════════════════════════════════════════════════
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  CELL = clamp(Math.floor(Math.min(W/COLS, H/ROWS)), MIN_CELL, MAX_CELL);
+  cvs.width  = COLS * CELL;
+  cvs.height = ROWS * CELL;
+}
+
+function renderCanvas(ts) {
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const idx = r * COLS + c;
+      const x = c * CELL, y = r * CELL;
+      const cell = world[idx];
+      drawCell(ctx, cell, x, y, idx);
+    }
+  }
+
+  // Night overlay (dayTime 0=dawn, 0.5=noon, 1=dawn again — midnight at 0.75)
+  const nightT = Math.max(0, Math.cos((dayTime - 0.75) * Math.PI * 2) * -0.5 + 0.1);
+  if (nightT > 0.02) {
+    ctx.fillStyle = `rgba(5,10,40,${Math.min(nightT, 0.55)})`;
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+  }
+
+  // Moon/sun indicator
+  drawSkyIndicator(ts);
+}
+
+function drawSkyIndicator(ts) {
+  const angle = dayTime * Math.PI * 2 - Math.PI/2;
+  const cx = CELL*0.6, cy = CELL*0.6, orb = CELL*0.22;
+  const isDark = dayTime > 0.55 && dayTime < 0.95;
+  ctx.save();
+  ctx.shadowBlur = isDark ? 12 : 6;
+  ctx.shadowColor = isDark ? '#aaddff' : '#ffee88';
+  ctx.fillStyle = isDark ? '#cce8ff' : '#FFE066';
+  ctx.beginPath();
+  ctx.arc(cx, cy, orb, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCell(ctx, cell, x, y, idx) {
+  const s = CELL;
+  const r = Math.floor(idx / COLS), c = idx % COLS;
+
+  // Grass base
+  const gv = (c*3 + r*7) % GRASS_PAL.length;
+  ctx.fillStyle = GRASS_PAL[gv];
+  ctx.fillRect(x, y, s, s);
+
+  // Grid line
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x+.5, y+.5, s-1, s-1);
+
+  // Hover highlight
+  if (idx === hoverCell) {
+    ctx.fillStyle = placingType ? 'rgba(0,245,255,0.15)' : 'rgba(255,255,255,0.1)';
+    ctx.fillRect(x, y, s, s);
+  }
+
+  // Selected highlight
+  if (idx === selectedCell) {
+    ctx.strokeStyle = '#00f5ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x+1, y+1, s-2, s-2);
+  }
+
+  if (!cell || cell.type === 'EMPTY') return;
+
+  // Draw building/resource
+  switch (cell.type) {
+    case 'TREE': drawTree(x, y, s, cell.charges); break;
+    case 'ROCK': drawRock(x, y, s, cell.charges); break;
+    default:     drawBuilding(x, y, s, cell); break;
+  }
+}
+
+// ── Drawing: Tree ─────────────────────────────────────────
+function drawTree(x, y, s, charges) {
+  if (charges <= 0) { drawStump(x, y, s); return; }
+  // Trunk
+  ctx.fillStyle = '#6D4C41';
+  ctx.fillRect(x+s*.41, y+s*.55, s*.18, s*.44);
+  // Canopy layers (dark → light → top)
+  const layers = [[.5,.78,.44,.30,'#1B5E20'],[.42,.64,.50,.26,'#2E7D32'],[.34,.54,.32,.22,'#388E3C']];
+  layers.forEach(([cxr,cyw,cwr,chr,col]) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x+s*(0.5-cwr/2), y+s*(1-cyw), s*cwr, s*chr);
+  });
+  if (s >= 36) { ctx.fillStyle = '#4CAF50'; ctx.fillRect(x+s*.38, y+s*.20, s*.11, s*.09); }
+  // Charge dots
+  for (let i = 0; i < charges; i++) {
+    ctx.fillStyle = '#66BB6A';
+    ctx.fillRect(x+s*(0.25+i*0.25), y+s*0.90, s*.14, s*.07);
+  }
+}
+
+function drawStump(x, y, s) {
+  ctx.fillStyle = '#5D4037';
+  ctx.fillRect(x+s*.35, y+s*.55, s*.30, s*.42);
+  ctx.fillStyle = '#4E342E';
+  ctx.fillRect(x+s*.37, y+s*.57, s*.26, s*.15);
+  ctx.fillStyle = '#795548';
+  ctx.fillRect(x+s*.44, y+s*.62, s*.12, s*.04);
+}
+
+// ── Drawing: Rock ─────────────────────────────────────────
+function drawRock(x, y, s, charges) {
+  ctx.fillStyle = '#607D8B';
+  ctx.fillRect(x+s*.12, y+s*.35, s*.76, s*.55);
+  ctx.fillStyle = '#78909C';
+  ctx.fillRect(x+s*.22, y+s*.22, s*.56, s*.22);
+  ctx.fillStyle = '#455A64';
+  ctx.fillRect(x+s*.28, y+s*.75, s*.44, s*.15);
+  if (s >= 36) { ctx.fillStyle = '#B0BEC5'; ctx.fillRect(x+s*.35, y+s*.28, s*.11, s*.13); }
+  for (let i = 0; i < charges; i++) {
+    ctx.fillStyle = '#90A4AE';
+    ctx.fillRect(x+s*(0.25+i*0.25), y+s*0.90, s*.14, s*.07);
+  }
+}
+
+// ── Drawing: Buildings ────────────────────────────────────
+function drawBuilding(x, y, s, cell) {
+  const bd = BDEF[cell.type];
+  if (!bd) return;
+  const hs = s/2;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(x+s*.06, y+s*.88, s*.88, s*.1);
+
+  switch(cell.type) {
+
+    case 'WOODCUTTER': {
+      // Walls
+      ctx.fillStyle = '#A1887F'; ctx.fillRect(x+s*.08, y+s*.36, s*.84, s*.60);
+      // Roof (triangle)
+      ctx.fillStyle = '#546E7A';
+      ctx.beginPath(); ctx.moveTo(x+s*.03,y+s*.40); ctx.lineTo(x+hs,y+s*.08); ctx.lineTo(x+s*.97,y+s*.40); ctx.closePath(); ctx.fill();
+      // Door
+      ctx.fillStyle = '#3E2723'; ctx.fillRect(x+s*.42, y+s*.67, s*.16, s*.29);
+      // Windows
+      ctx.fillStyle = '#FFF9C4'; ctx.fillRect(x+s*.14, y+s*.50, s*.18, s*.15);
+      ctx.fillStyle = '#FFF9C4'; ctx.fillRect(x+s*.68, y+s*.50, s*.18, s*.15);
+      // Chimney
+      if (s >= 36) {
+        ctx.fillStyle = '#78909C'; ctx.fillRect(x+s*.70, y+s*.12, s*.12, s*.28);
+        ctx.fillStyle = 'rgba(180,180,180,0.4)'; ctx.beginPath(); ctx.arc(x+s*.76, y+s*.10, s*.06, 0, Math.PI*2); ctx.fill();
+      }
+      // Axe icon
+      if (s >= 40) { drawEmoji(ctx, '🪓', x+s*.5, y+s*.47, s*.28); }
+      break;
+    }
+
+    case 'QUARRY': {
+      // Pit (darker center)
+      ctx.fillStyle = '#37474F'; ctx.fillRect(x+s*.15, y+s*.25, s*.70, s*.65);
+      // Stone walls
+      ctx.fillStyle = '#78909C'; ctx.fillRect(x+s*.08, y+s*.20, s*.84, s*.12);
+      ctx.fillStyle = '#607D8B'; ctx.fillRect(x+s*.08, y+s*.32, s*.12, s*.58);
+      ctx.fillStyle = '#607D8B'; ctx.fillRect(x+s*.80, y+s*.32, s*.12, s*.58);
+      // Rock piles inside
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(x+s*.25, y+s*.68, s*.18, s*.12);
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(x+s*.55, y+s*.70, s*.16, s*.10);
+      if (s >= 40) { drawEmoji(ctx, '⛏️', x+s*.5, y+s*.48, s*.30); }
+      break;
+    }
+
+    case 'IRON_MINE': {
+      ctx.fillStyle = '#37474F'; ctx.fillRect(x+s*.08, y+s*.20, s*.84, s*.76);
+      // Mine entrance
+      ctx.fillStyle = '#212121'; ctx.fillRect(x+s*.30, y+s*.45, s*.40, s*.51);
+      // Arch top of entrance
+      ctx.fillStyle = '#212121';
+      ctx.beginPath(); ctx.arc(x+s*.50, y+s*.45, s*.20, Math.PI, 0); ctx.fill();
+      // Rail tracks
+      ctx.strokeStyle = '#757575'; ctx.lineWidth = Math.max(1, s*.025);
+      ctx.beginPath(); ctx.moveTo(x+s*.38, y+s*.92); ctx.lineTo(x+s*.38, y+s*.55); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+s*.62, y+s*.92); ctx.lineTo(x+s*.62, y+s*.55); ctx.stroke();
+      // Cross ties
+      for (let ty=.60; ty<.92; ty+=.1) { ctx.beginPath(); ctx.moveTo(x+s*.34,y+s*ty); ctx.lineTo(x+s*.66,y+s*ty); ctx.stroke(); }
+      // Lantern
+      if (s >= 38) { ctx.fillStyle = '#FF8F00'; ctx.fillRect(x+s*.46, y+s*.28, s*.08, s*.10); }
+      if (s >= 40) { drawEmoji(ctx, '⚙️', x+s*.5, y+s*.36, s*.24); }
+      break;
+    }
+
+    case 'GOLD_MINE': {
+      ctx.fillStyle = '#F57F17'; ctx.fillRect(x+s*.08, y+s*.28, s*.84, s*.68);
+      ctx.fillStyle = '#FFD600'; ctx.fillRect(x+s*.15, y+s*.22, s*.70, s*.12);
+      // Glitter
+      for (let i=0; i<4; i++) {
+        ctx.fillStyle = `rgba(255,230,0,${0.3+i*.15})`;
+        ctx.fillRect(x+s*(.22+i*.20), y+s*.64, s*.10, s*.10);
+      }
+      // Mine shaft
+      ctx.fillStyle = '#212121'; ctx.fillRect(x+s*.35, y+s*.50, s*.30, s*.46);
+      if (s >= 40) { drawEmoji(ctx, '⭐', x+s*.5, y+s*.38, s*.28); }
+      break;
+    }
+
+    case 'DIAMOND_MINE': {
+      ctx.fillStyle = '#01579B'; ctx.fillRect(x+s*.08, y+s*.20, s*.84, s*.76);
+      // Crystal glow
+      ctx.fillStyle = '#0288D1'; ctx.fillRect(x+s*.18, y+s*.28, s*.64, s*.60);
+      // Crystal shapes
+      ctx.fillStyle = '#00E5FF';
+      [[.35,.42,.30,.35],[.55,.38,.28,.38]].forEach(([cx,cy,cw,ch]) => {
+        ctx.beginPath();
+        ctx.moveTo(x+s*(cx+cw/2), y+s*cy);
+        ctx.lineTo(x+s*(cx+cw),   y+s*(cy+ch/2));
+        ctx.lineTo(x+s*(cx+cw/2), y+s*(cy+ch));
+        ctx.lineTo(x+s*cx,        y+s*(cy+ch/2));
+        ctx.closePath(); ctx.fill();
+      });
+      if (s >= 40) { drawEmoji(ctx, '💎', x+s*.5, y+s*.48, s*.26); }
+      break;
+    }
+
+    case 'MARKET': {
+      // Stall body
+      ctx.fillStyle = '#FFF9C4'; ctx.fillRect(x+s*.08, y+s*.40, s*.84, s*.56);
+      // Striped awning
+      const stripes = 6;
+      for (let i=0; i<stripes; i++) {
+        ctx.fillStyle = i%2===0 ? '#C62828' : '#FFFFFF';
+        ctx.fillRect(x+s*(.08+i*(0.84/stripes)), y+s*.24, s*(0.84/stripes), s*.20);
+      }
+      // Counter
+      ctx.fillStyle = '#F5F5DC'; ctx.fillRect(x+s*.14, y+s*.52, s*.72, s*.08);
+      // Goods on counter
+      if (s >= 38) {
+        ctx.fillStyle = '#FF5722'; ctx.fillRect(x+s*.20, y+s*.44, s*.10, s*.10);
+        ctx.fillStyle = '#4CAF50'; ctx.fillRect(x+s*.34, y+s*.44, s*.10, s*.10);
+        ctx.fillStyle = '#FFD700'; ctx.fillRect(x+s*.48, y+s*.44, s*.10, s*.10);
+      }
+      if (s >= 40) { drawEmoji(ctx, '🏪', x+s*.5, y+s*.72, s*.24); }
+      break;
+    }
+
+    case 'HOUSE': {
+      // Walls
+      ctx.fillStyle = '#A1887F'; ctx.fillRect(x+s*.10, y+s*.38, s*.80, s*.58);
+      // Roof
+      ctx.fillStyle = '#1565C0';
+      ctx.beginPath(); ctx.moveTo(x+s*.04,y+s*.42); ctx.lineTo(x+hs,y+s*.08); ctx.lineTo(x+s*.96,y+s*.42); ctx.closePath(); ctx.fill();
+      // Door
+      ctx.fillStyle = '#3E2723'; ctx.fillRect(x+s*.41, y+s*.68, s*.18, s*.28);
+      // Windows
+      ctx.fillStyle = '#FFF9C4'; ctx.fillRect(x+s*.14, y+s*.50, s*.20, s*.16);
+      ctx.fillStyle = '#FFF9C4'; ctx.fillRect(x+s*.66, y+s*.50, s*.20, s*.16);
+      // Window cross deco
+      ctx.strokeStyle = '#B0BEC5'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x+s*.24,y+s*.50); ctx.lineTo(x+s*.24,y+s*.66); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+s*.14,y+s*.58); ctx.lineTo(x+s*.34,y+s*.58); ctx.stroke();
+      break;
+    }
+
+    case 'FARM': {
+      // Soil rows
+      for (let row=0; row<5; row++) {
+        ctx.fillStyle = row%2===0 ? '#5D4037' : '#6D4C41';
+        ctx.fillRect(x+s*.08, y+s*(.18+row*.158), s*.84, s*.14);
+      }
+      // Crops (green sprouts)
+      for (let row=0; row<5; row+=2) {
+        ctx.fillStyle = '#66BB6A';
+        for (let col=0; col<5; col++) {
+          ctx.fillRect(x+s*(.15+col*.16), y+s*(.16+row*.158), s*.07, s*.14);
+        }
+      }
+      if (s >= 40) { drawEmoji(ctx, '🌾', x+s*.5, y+s*.42, s*.28); }
+      break;
+    }
+
+    case 'WORKSHOP': {
+      ctx.fillStyle = '#455A64'; ctx.fillRect(x+s*.08, y+s*.22, s*.84, s*.74);
+      ctx.fillStyle = '#37474F'; ctx.fillRect(x+s*.08, y+s*.14, s*.84, s*.12);
+      // Windows (orange = forge glow)
+      ctx.fillStyle = '#FF8F00'; ctx.fillRect(x+s*.14, y+s*.36, s*.22, s*.20);
+      ctx.fillStyle = '#FF8F00'; ctx.fillRect(x+s*.64, y+s*.36, s*.22, s*.20);
+      // Gear graphic (circle)
+      if (s >= 38) {
+        ctx.strokeStyle = '#FF8F00'; ctx.lineWidth = Math.max(2, s*.045);
+        ctx.beginPath(); ctx.arc(x+hs, y+s*.62, s*.18, 0, Math.PI*2); ctx.stroke();
+        // Gear teeth
+        for (let a=0; a<8; a++) {
+          const ang = a * Math.PI/4;
+          ctx.fillStyle = '#FF8F00';
+          ctx.fillRect(x+hs + Math.cos(ang)*(s*.16)-s*.025, y+s*.62+Math.sin(ang)*(s*.16)-s*.025, s*.05, s*.05);
+        }
+      }
+      if (s >= 40) { drawEmoji(ctx, '🔬', x+s*.5, y+s*.62, s*.22); }
+      break;
+    }
+
+    case 'CASTLE': {
+      // Base wall
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(x+s*.04, y+s*.32, s*.92, s*.64);
+      // Central tower
+      ctx.fillStyle = '#607D8B'; ctx.fillRect(x+s*.28, y+s*.08, s*.44, s*.80);
+      // Side towers
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(x+s*.04, y+s*.18, s*.24, s*.56);
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(x+s*.72, y+s*.18, s*.24, s*.56);
+      // Battlements (central)
+      for (let i=0; i<3; i++) { ctx.fillStyle='#455A64'; ctx.fillRect(x+s*(.30+i*.14), y+s*.02, s*.09, s*.10); }
+      // Battlements (left tower)
+      for (let i=0; i<2; i++) { ctx.fillStyle='#455A64'; ctx.fillRect(x+s*(.06+i*.12), y+s*.12, s*.08, s*.09); }
+      // Battlements (right tower)
+      for (let i=0; i<2; i++) { ctx.fillStyle='#455A64'; ctx.fillRect(x+s*(.74+i*.12), y+s*.12, s*.08, s*.09); }
+      // Gate arch
+      ctx.fillStyle = '#263238';
+      ctx.beginPath(); ctx.arc(x+hs, y+s*.80, s*.12, Math.PI, 0); ctx.fill();
+      ctx.fillRect(x+s*.38, y+s*.80, s*.24, s*.16);
+      // Windows
+      ctx.fillStyle = '#FFF176'; ctx.fillRect(x+s*.40, y+s*.20, s*.10, s*.14);
+      ctx.fillStyle = '#FFF176'; ctx.fillRect(x+s*.50, y+s*.20, s*.10, s*.14);
+      // Flag
+      ctx.fillStyle = '#795548'; ctx.fillRect(x+s*.49, y-s*.04, s*.02, s*.18);
+      ctx.fillStyle = '#E53935'; ctx.fillRect(x+s*.51, y-s*.02, s*.16, s*.10);
+      break;
+    }
+  }
+
+  // Worker dots (top right)
+  if (cell.workers > 0) {
+    for (let w = 0; w < cell.workers; w++) {
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(x + s*.90 - w*s*.12, y + s*.10, s*.055, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // Level badge (top left)
+  if (cell.level > 1 || (cell.type !== 'TREE' && cell.type !== 'ROCK')) {
+    const bd2 = BDEF[cell.type];
+    if (bd2 && bd2.maxLevel > 1) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x+s*.01, y+s*.01, s*.22, s*.20);
+      ctx.fillStyle = '#00f5ff';
+      ctx.font = `bold ${Math.max(8, Math.floor(s*.15))}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cell.level, x+s*.12, y+s*.11);
+    }
+  }
+}
+
+function drawEmoji(ctx, em, cx, cy, size) {
+  ctx.save();
+  ctx.font = `${Math.floor(size)}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(em, cx, cy);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INPUT HANDLING
+// ═══════════════════════════════════════════════════════════
+
+function cellFromXY(px, py) {
+  const r = document.getElementById('canvas-wrap').getBoundingClientRect();
+  const ox = (r.width  - cvs.width)  / 2;
+  const oy = (r.height - cvs.height) / 2;
+  const cx = Math.floor((px - r.left - ox) / CELL);
+  const cy = Math.floor((py - r.top  - oy) / CELL);
+  if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return -1;
+  return cy * COLS + cx;
+}
+
+cvs.addEventListener('mousemove', e => { hoverCell = cellFromXY(e.clientX, e.clientY); });
+cvs.addEventListener('mouseleave', () => { hoverCell = -1; });
+cvs.addEventListener('click',     e => { onCellClick(cellFromXY(e.clientX, e.clientY)); });
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  onCellClick(cellFromXY(t.clientX, t.clientY));
+}, { passive:false });
+
+function onCellClick(idx) {
+  if (idx < 0) return;
+  const cell = world[idx];
+
+  if (placingType) {
+    tryPlace(idx);
+    return;
+  }
+
+  // Click on natural resource
+  if (cell.type === 'TREE' || cell.type === 'ROCK') {
+    harvestNatural(idx);
+    return;
+  }
+
+  selectedCell = (selectedCell === idx) ? -1 : idx;
+  updateCellInfo();
+  if (activeTab === 'workers') renderWorkersTab();
+}
+
+function harvestNatural(idx) {
+  const cell = world[idx];
+  if (cell.charges <= 0) { toast('Már kimerült!', 'err'); return; }
+  cell.charges--;
+  let gain = {}, color = '#00ff88';
+
+  if (cell.type === 'TREE') { gain.wood  = 5 + Math.floor(Math.random()*3); color='#8BC34A'; }
+  if (cell.type === 'ROCK') { gain.stone = 3 + Math.floor(Math.random()*2); color='#90A4AE'; }
+
+  Object.entries(gain).forEach(([k,v]) => { res[k] = (res[k]||0)+v; });
+
+  // Float text
+  const wrap = document.getElementById('canvas-wrap');
+  const r = wrap.getBoundingClientRect();
+  const ox = (r.width - cvs.width)/2;
+  const oy = (r.height - cvs.height)/2;
+  const col = idx % COLS, row = Math.floor(idx / COLS);
+  addFloat(ox + col*CELL + CELL/2, oy + row*CELL, `+${Object.values(gain)[0]} ${cell.type==='TREE'?'🪵':'🪨'}`, color);
+
+  if (cell.charges <= 0) {
+    world[idx] = { type:'EMPTY', level:1, workers:0, charges:0 };
+    if (selectedCell === idx) { selectedCell = -1; updateCellInfo(); }
+  }
+
+  updateResBar();
+  if (activeTab === 'build') renderBuildTab();
+}
+
+function tryPlace(idx) {
+  const cell = world[idx];
+  if (cell.type !== 'EMPTY') { toast('Ez a mező már foglalt!', 'err'); return; }
+
+  const bdef = BDEF[placingType];
+  if (!bdef) return;
+  if (!canAfford(bdef.cost)) { toast('Nincs elég nyersanyag!', 'err'); return; }
+  if (placingType === 'CASTLE' && !world.some(c => c.type === 'WORKSHOP')) { toast('Előbb Műhelyt kell építened!', 'err'); return; }
+
+  deduct(bdef.cost);
+  world[idx] = { type:placingType, level:1, workers:0, charges:0 };
+  toast(`${bdef.emoji} ${bdef.name} felépítve!`, 'ok');
+
+  cancelPlacing();
+  selectedCell = idx;
+  updateCellInfo();
+  renderBuildTab();
+  renderWorkersTab();
+  computeMults();
+  updateResBar();
+}
+
+function cancelPlacing() {
+  placingType = null;
+  document.body.classList.remove('placing');
+  renderBuildTab();
+}
+
+// Escape = cancel placing
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { cancelPlacing(); selectedCell = -1; updateCellInfo(); }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  UI: RESOURCE BAR
+// ═══════════════════════════════════════════════════════════
+
+function updateResBar() {
+  const RES_KEYS = ['coins','wood','stone','iron','gold','diamond'];
+  computeRates();
+  RES_KEYS.forEach(k => {
+    const v = document.getElementById(`rv-${k}`);
+    const r = document.getElementById(`rr-${k}`);
+    if (v) v.textContent = fmt(res[k] || 0);
+    if (r) {
+      const rt = rates[k] || 0;
+      r.textContent = rt >= 0.005 ? `+${rt.toFixed(1)}/s` : '';
+    }
+  });
+  // Day badge
+  const elapsed = dayTime * 120; // seconds into cycle
+  const inDay = elapsed < 60;
+  document.getElementById('day-badge').textContent = `${inDay ? '☀️' : '🌙'} Nap ${totalDays}`;
+  // Increment day counter roughly
+  totalDays = Math.max(totalDays, 1 + Math.floor((performance.now()/1000)/60));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI: CELL INFO
+// ═══════════════════════════════════════════════════════════
+
+function updateCellInfo() {
+  const titleEl   = document.getElementById('ci-title');
+  const descEl    = document.getElementById('ci-desc');
+  const actionsEl = document.getElementById('ci-actions');
+  actionsEl.innerHTML = '';
+
+  if (selectedCell < 0) {
+    titleEl.textContent = 'Kattints egy mezőre!';
+    descEl.textContent  = 'Fákra és kövekre kattintva nyersanyagokat gyűjthetsz.';
+    return;
+  }
+
+  const cell = world[selectedCell];
+  if (!cell || cell.type === 'EMPTY') {
+    titleEl.textContent = 'Üres mező';
+    descEl.textContent  = 'Válassz egy épületet az Építés fülről, majd kattints ide.';
+    return;
+  }
+
+  if (cell.type === 'TREE' || cell.type === 'ROCK') {
+    titleEl.textContent = cell.type === 'TREE' ? '🌲 Fa' : '🪨 Kő';
+    descEl.textContent  = `${cell.charges} bányászati töltés maradt.`;
+    const btn = makeBtn(`Kinyerés (${cell.charges}x)`, 'good', () => { harvestNatural(selectedCell); updateCellInfo(); });
+    btn.disabled = cell.charges <= 0;
+    actionsEl.appendChild(btn);
+    const rem = makeBtn('Eltávolít (20🪙)', 'warn', () => {
+      if (!canAfford({coins:20})) { toast('Nincs elég érme!','err'); return; }
+      deduct({coins:20}); world[selectedCell]={type:'EMPTY',level:1,workers:0,charges:0};
+      selectedCell=-1; updateCellInfo(); renderBuildTab();
+    });
+    actionsEl.appendChild(rem);
+    return;
+  }
+
+  const bdef = BDEF[cell.type];
+  if (!bdef) return;
+
+  titleEl.textContent = `${bdef.emoji} ${bdef.name} (Szint ${cell.level})`;
+
+  // Production info
+  const rate = cellRate(cell);
+  const rateStr = Object.entries(rate).map(([k,v]) => `${v.toFixed(2)}/s ${k}`).join(', ');
+  descEl.textContent = bdef.desc + (rateStr ? ` | ${rateStr}` : '');
+
+  // Upgrade button
+  if (cell.level < bdef.maxLevel) {
+    const upgC = bdef.upgCost(cell.level);
+    const upgLabel = 'Fejlesztés → Szint ' + (cell.level+1) + ' [' + costStr(upgC) + ']';
+    const upgBtn = makeBtn(upgLabel, canAfford(upgC)?'prim':'', () => {
+      if (!canAfford(upgC)) { toast('Nincs elég nyersanyag a fejlesztéshez!','err'); return; }
+      deduct(upgC); cell.level++; toast(`${bdef.emoji} Szint ${cell.level}!`,'ok');
+      updateCellInfo(); renderBuildTab(); updateResBar();
+    });
+    upgBtn.disabled = !canAfford(upgC);
+    actionsEl.appendChild(upgBtn);
+  }
+
+  // Remove button
+  const remRefund = Math.round(Object.values(bdef.cost).reduce((s,v)=>s+v,0)*0.4);
+  const remBtn = makeBtn(`Elbont (+${remRefund}🪙)`, 'bad', () => {
+    // Refund workers
+    workersFree += cell.workers;
+    res.coins = (res.coins||0) + remRefund;
+    world[selectedCell] = { type:'EMPTY', level:1, workers:0, charges:0 };
+    selectedCell = -1; updateCellInfo(); renderBuildTab(); renderWorkersTab(); updateResBar();
+    toast('Épület elbontva.', 'inf');
+  });
+  actionsEl.appendChild(remBtn);
+}
+
+function makeBtn(label, cls, fn) {
+  const b = document.createElement('button');
+  b.className = 'ci-btn' + (cls ? ' '+cls : '');
+  b.textContent = label;
+  b.addEventListener('click', fn);
+  b.addEventListener('touchend', e => { e.preventDefault(); fn(); });
+  return b;
+}
+
+function costStr(cost) {
+  return Object.entries(cost).filter(([,v])=>v>0).map(([k,v])=>`${fmt(v)} ${k}`).join(', ');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI: TAB CONTENT
+// ═══════════════════════════════════════════════════════════
+
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  renderTab();
+}
+
+function renderTab() {
+  switch(activeTab) {
+    case 'build':    renderBuildTab();    break;
+    case 'workers':  renderWorkersTab();  break;
+    case 'research': renderResearchTab(); break;
+    case 'stats':    renderStatsTab();    break;
+  }
+}
+
+// ── Build Tab ─────────────────────────────────────────────
+function renderBuildTab() {
+  const tc = document.getElementById('tab-content');
+  const has_ws = hasWorkshop();
+  let html = '<div class="bld-grid">';
+  BUILD_ORDER.forEach(key => {
+    const bd = BDEF[key];
+    const affordable = canAfford(bd.cost);
+    const locked = (key === 'CASTLE' && !has_ws);
+    const isPressing = placingType === key;
+    const cls = [
+      'bld-card',
+      locked ? 'locked' : '',
+      !locked && !affordable ? 'poor' : '',
+      isPressing ? 'selected-for-place' : '',
+    ].join(' ').trim();
+
+    const prodStr = bd.baseProd && Object.keys(bd.baseProd).length
+      ? '↑ ' + Object.entries(bd.baseProd).map(([k,v])=>`${v}/s ${k}`).join(', ')
+      : (bd.workerCap ? `+${bd.workerCap} munkás/szint` : (bd.farmBonus ? `+${(bd.farmBonus*100).toFixed(0)}% termelés/szint` : ''));
+
+    const costHtml = Object.entries(bd.cost)
+      .map(([k,v]) => {
+        const have = res[k]||0;
+        const ok   = have >= v;
+        return `<span class="cv" style="${ok?'':'color:#773'}">  ${fmt(v)} ${k}</span>`;
+      }).join('');
+
+    const lockMsg = locked ? '<div class="bc-lock-msg">🔒 Műhely szükséges</div>' : '';
+
+    html += `
+      <div class="${cls}" data-bkey="${key}">
+        <div class="bc-head">
+          <span class="bc-emoji">${bd.emoji}</span>
+          <span class="bc-name">${bd.name}</span>
+        </div>
+        <div class="bc-cost">${costHtml}</div>
+        ${lockMsg}
+        <div class="bc-prod">${prodStr}</div>
+      </div>`;
+  });
+  html += '</div>';
+  tc.innerHTML = html;
+
+  tc.querySelectorAll('.bld-card').forEach(card => {
+    const key = card.dataset.bkey;
+    const handler = () => {
+      if (card.classList.contains('locked')) return;
+      if (placingType === key) { cancelPlacing(); return; }
+      placingType = key;
+      document.body.classList.add('placing');
+      renderBuildTab();
+      toast(`${BDEF[key].emoji} ${BDEF[key].name} — Kattints egy üres mezőre!`, 'inf');
+    };
+    card.addEventListener('click', handler);
+    card.addEventListener('touchend', e => { e.preventDefault(); handler(); });
+  });
+}
+
+// ── Workers Tab ───────────────────────────────────────────
+function renderWorkersTab() {
+  const tc = document.getElementById('tab-content');
+  const cap = workerCapacity();
+  const assigned = cap - workersFree;
+  let html = `<div class="worker-summary">👷 ${assigned} / ${cap} munkás kihelyezve</div><div>`;
+
+  const buildings = world.filter(c => c && BDEF[c.type] && (BDEF[c.type].maxWorkers||0) > 0);
+  if (buildings.length === 0) {
+    tc.innerHTML = '<div style="text-align:center;color:#2a3a45;font-size:.8em;padding:20px">Nincs még munkást fogadó épület.<br>Építs Favágó Kunyhót vagy más termelőt!</div>';
+    return;
+  }
+
+  buildings.forEach((cell, bi) => {
+    const bd = BDEF[cell.type];
+    const idx = world.indexOf(cell);
+    const rate = cellRate(cell);
+    const rateStr = Object.entries(rate).map(([k,v])=>`${v.toFixed(2)}/s ${k}`).join(', ') || '—';
+    html += `
+      <div class="wr-row">
+        <span class="wr-emoji">${bd.emoji}</span>
+        <div class="wr-info">
+          <div class="wr-name">${bd.name} (Szint ${cell.level})</div>
+          <div class="wr-pos">${rateStr}</div>
+        </div>
+        <div class="wr-ctrl">
+          <button class="wr-nb" id="wminus-${bi}" ${cell.workers <= 0 ? 'disabled' : ''}>−</button>
+          <span class="wr-cnt">${cell.workers}</span>
+          <button class="wr-nb" id="wplus-${bi}"  ${cell.workers >= bd.maxWorkers || workersFree <= 0 ? 'disabled' : ''}>+</button>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  tc.innerHTML = html;
+
+  buildings.forEach((cell, bi) => {
+    const bd = BDEF[cell.type];
+    const pm = tc.querySelector(`#wminus-${bi}`);
+    const pp = tc.querySelector(`#wplus-${bi}`);
+    if (pm) pm.addEventListener('click', () => {
+      if (cell.workers <= 0) return;
+      cell.workers--; workersFree++;
+      renderWorkersTab();
+    });
+    if (pp) pp.addEventListener('click', () => {
+      if (cell.workers >= bd.maxWorkers || workersFree <= 0) return;
+      cell.workers++; workersFree--;
+      renderWorkersTab();
+    });
+  });
+}
+
+// ── Research Tab ──────────────────────────────────────────
+function renderResearchTab() {
+  const tc = document.getElementById('tab-content');
+  const ws = hasWorkshop();
+  if (!ws) {
+    tc.innerHTML = '<div style="text-align:center;color:#2a3a45;font-size:.8em;padding:20px">🔬 Kutatáshoz előbb <b style="color:#556">Műhelyt</b> kell építened!</div>';
+    return;
+  }
+
+  let html = '<div class="res-cards">';
+  RDEF.forEach(r => {
+    const done     = doneRes.has(r.id);
+    const reqsMet  = r.req.every(id => doneRes.has(id));
+    const afford   = canAfford(r.cost);
+    const cls = done ? 'res-card done' : (!reqsMet ? 'res-card locked' : (!afford ? 'res-card poor' : 'res-card'));
+    const reqStr   = r.req.length > 0 && !reqsMet ? `🔒 Szükséges: ${r.req.map(id=>RDEF.find(x=>x.id===id)?.name||id).join(', ')}` : '';
+    const costHtml = done ? '' : Object.entries(r.cost).map(([k,v])=>`${fmt(v)} ${k}`).join(' · ');
+
+    html += `
+      <div class="${cls}" data-rid="${r.id}">
+        <span class="rc-icon">${r.emoji}</span>
+        <div class="rc-body">
+          <div class="rc-name">${r.name}</div>
+          <div class="rc-desc">${r.desc}</div>
+          ${reqStr ? `<div class="rc-cost" style="color:#553">${reqStr}</div>` : costHtml ? `<div class="rc-cost">💰 ${costHtml}</div>` : ''}
+        </div>
+        ${done ? '<span class="rc-done-badge">✅</span>' : ''}
+      </div>`;
+  });
+  html += '</div>';
+  tc.innerHTML = html;
+
+  tc.querySelectorAll('.res-card:not(.done):not(.locked)').forEach(card => {
+    const rid = card.dataset.rid;
+    const r   = RDEF.find(x => x.id === rid);
+    if (!r) return;
+    const handler = () => {
+      if (!canAfford(r.cost)) { toast('Nincs elég nyersanyag a kutatáshoz!','err'); return; }
+      deduct(r.cost);
+      doneRes.add(r.id);
+      computeMults();
+      toast(`🔬 ${r.name} kutatva!`, 'ok');
+      renderResearchTab();
+      updateResBar();
+    };
+    card.addEventListener('click', handler);
+    card.addEventListener('touchend', e => { e.preventDefault(); handler(); });
+  });
+}
+
+// ── Stats Tab ─────────────────────────────────────────────
+function renderStatsTab() {
+  computeRates();
+  const RK = ['coins','wood','stone','iron','gold','diamond'];
+  const icons = { coins:'🪙', wood:'🪵', stone:'🪨', iron:'⚙️', gold:'⭐', diamond:'💎' };
+  const names = { coins:'Érmék', wood:'Fa', stone:'Kő', iron:'Vas', gold:'Arany', diamond:'Gyémánt' };
+  let html = '<div class="stats-grid">';
+  RK.forEach(k => {
+    const rt = rates[k] || 0;
+    html += `
+      <div class="stat-card">
+        <div class="sc-label">${icons[k]} ${names[k]}</div>
+        <div class="sc-val">${fmt(res[k]||0)}</div>
+        <div class="sc-rate">${rt >= 0.005 ? fmtR(rt) : '0/s'}</div>
+      </div>`;
+  });
+  // Extra stats
+  const cap = workerCapacity();
+  const bldCount = world.filter(c=>c && BDEF[c.type] && !['TREE','ROCK','EMPTY'].includes(c.type)).length;
+  html += `
+    <div class="stat-card">
+      <div class="sc-label">👷 Munkások</div>
+      <div class="sc-val">${cap - workersFree} / ${cap}</div>
+      <div class="sc-rate">kihelyezve</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">🏗️ Épületek</div>
+      <div class="sc-val">${bldCount}</div>
+      <div class="sc-rate">${doneRes.size} kutatás kész</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">🌾 Farm bónusz</div>
+      <div class="sc-val">+${(totalFarmBonus()*100).toFixed(0)}%</div>
+      <div class="sc-rate">termelési szorzó</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">⭐ Presztízs</div>
+      <div class="sc-val">${prestige}</div>
+      <div class="sc-rate">+${(prestige*10)}% bónusz</div>
+    </div>`;
+  html += '</div>';
+  document.getElementById('tab-content').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FLOATING TEXT
+// ═══════════════════════════════════════════════════════════
+
+function addFloat(x, y, text, color) {
+  const fl = document.getElementById('float-layer');
+  const el = document.createElement('div');
+  el.className = 'ft';
+  el.textContent = text;
+  el.style.left  = (x - 20) + 'px';
+  el.style.top   = (y - 10) + 'px';
+  el.style.color = color || '#00ff88';
+  fl.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+
+function toast(msg, type='ok') {
+  const tw = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  tw.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CONFETTI
+// ═══════════════════════════════════════════════════════════
+
+const ccvs = document.getElementById('confetti');
+const cctx = ccvs.getContext('2d');
+let confP = [];
+
+function launchConfetti() {
+  ccvs.width = window.innerWidth; ccvs.height = window.innerHeight;
+  const cols = ['#aa66ff','#00f5ff','#FFD700','#E53935','#66BB6A','#FF8F00','#fff'];
+  for (let i=0; i<180; i++) {
+    confP.push({
+      x: Math.random()*ccvs.width, y: -10-Math.random()*100,
+      vx:(Math.random()-.5)*4, vy:2+Math.random()*3.5,
+      rot:Math.random()*360, rv:(Math.random()-.5)*9,
+      w:6+Math.random()*9, h:4+Math.random()*5,
+      col:cols[Math.floor(Math.random()*cols.length)],
+    });
+  }
+  animConf();
+}
+
+function animConf() {
+  cctx.clearRect(0,0,ccvs.width,ccvs.height);
+  confP.forEach(p => {
+    p.x+=p.vx; p.y+=p.vy; p.rot+=p.rv; p.vy+=.08;
+    cctx.save();
+    cctx.translate(p.x,p.y); cctx.rotate(p.rot*Math.PI/180);
+    cctx.fillStyle=p.col; cctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+    cctx.restore();
+  });
+  confP=confP.filter(p=>p.y<ccvs.height+30);
+  if (confP.length>0) requestAnimationFrame(animConf);
+  else cctx.clearRect(0,0,ccvs.width,ccvs.height);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SAVE / LOAD
+// ═══════════════════════════════════════════════════════════
+
+const SAVE_KEY = 'craft_empire_v2';
+
+function saveGame() {
+  const data = {
+    res, world,
+    workersTotal, workersFree,
+    doneRes: [...doneRes],
+    dayTime, totalDays, prestige, won,
+  };
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    toast('💾 Játék mentve!', 'ok');
+  } catch(e) { toast('Mentési hiba!','err'); }
+}
+
+function autoSave() {
+  const data = {
+    res, world,
+    workersTotal, workersFree,
+    doneRes: [...doneRes],
+    dayTime, totalDays, prestige, won,
+  };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    res          = d.res;
+    world        = d.world;
+    workersTotal = d.workersTotal || 5;
+    workersFree  = d.workersFree  || 5;
+    doneRes      = new Set(d.doneRes || []);
+    dayTime      = d.dayTime  || 0;
+    totalDays    = d.totalDays|| 1;
+    prestige     = d.prestige || 0;
+    won          = d.won      || false;
+    computeMults();
+    return true;
+  } catch(e) { return false; }
+}
+
+function newGame() {
+  if (!confirm('Biztosan új játékot kezdesz? Az előrehaladás elvész!')) return;
+  localStorage.removeItem(SAVE_KEY);
+  initState(prestige);
+  cancelPlacing();
+  selectedCell = -1;
+  updateCellInfo();
+  renderTab();
+  updateResBar();
+  toast('🆕 Új játék kezdve!','inf');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EVENT BINDING & BOOT
+// ═══════════════════════════════════════════════════════════
+
+document.querySelectorAll('.tab-btn').forEach(b => {
+  b.addEventListener('click', () => setTab(b.dataset.tab));
+  b.addEventListener('touchend', e => { e.preventDefault(); setTab(b.dataset.tab); });
+});
+
+document.getElementById('btn-save').addEventListener('click', saveGame);
+document.getElementById('btn-new').addEventListener('click', newGame);
+
+document.getElementById('btn-prestige').addEventListener('click', () => {
+  document.getElementById('win-modal').classList.remove('show');
+  const np = prestige + 1;
+  localStorage.removeItem(SAVE_KEY);
+  initState(np);
+  cancelPlacing(); selectedCell=-1; updateCellInfo(); renderTab(); updateResBar();
+  toast(`⭐ Presztízs ${np}! +${np*10}% termelési bónusz!`, 'ok');
+});
+
+document.getElementById('btn-continue').addEventListener('click', () => {
+  document.getElementById('win-modal').classList.remove('show');
+  toast('Játék folytatva — építkezz tovább!','inf');
+});
+
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  ccvs.width = window.innerWidth; ccvs.height = window.innerHeight;
+});
+
+// STATS tab: refresh periodically
+setInterval(() => { if (activeTab === 'stats') renderStatsTab(); }, 3000);
+// Research tab: refresh when resources change to show affordable status
+setInterval(() => { if (activeTab === 'research') renderResearchTab(); if (activeTab === 'build') renderBuildTab(); }, 5000);
+
+// ── BOOT ──────────────────────────────────────────────────
+(function boot() {
+  if (!loadGame()) initState(0);
+  resizeCanvas();
+  updateCellInfo();
+  renderTab();
+  updateResBar();
+  toast('⛏️ Craft Empire — Kezdj el nyersanyagokat gyűjteni!', 'inf');
+  lastTs = 0;
+  requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>
