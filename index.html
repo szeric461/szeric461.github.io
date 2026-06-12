@@ -1,198 +1,412 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hobbi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Szeric461 — Hobbi oldal</title>
     <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent:  #00f5ff;
+            --accent2: #aa66ff;
+            --bg:      #08080f;
+            --border:  rgba(0,245,255,0.12);
+        }
+
+        html, body { height: 100%; height: 100dvh; }
+
         body {
-            margin: 0;
-            padding: 0;
-            background: #1a1a1a;
-            color: white;
-            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: #e0e0f0;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            height: 100dvh;
-            overflow: hidden;
-        }
-
-        /* Menüsor kiegészítve az új játékhoz */
-        .game-selector {
-            background: #2d2d2d;
-            padding: 15px;
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap; /* Mobilbarát: ha sok gomb van, több sorba rendezi */
-            gap: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 100;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            background: #444;
-            color: #ccc;
-            transition: all 0.3s ease;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
 
-        @media (max-width: 480px) {
-            button { padding: 8px 12px; font-size: 13px; }
-            .game-selector { padding: 10px; gap: 8px; }
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
         }
 
-        button:hover {
-            background: #61dafb;
-            color: #000;
-            transform: translateY(-2px);
-        }
-
-        button.active {
-            background: #61dafb;
-            color: #20232a;
-            box-shadow: 0 0 15px rgba(97, 218, 251, 0.5);
-        }
-
-        .game-viewport {
-            flex-grow: 1;
-            width: 100%;
-            border: none;
-        }
-
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        /* ── LANDING OVERLAY ── */
+        /* LANDING */
         #landing {
             position: fixed;
             inset: 0;
-            background: #1a1a2e;
+            z-index: 10;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 30px;
-            z-index: 999;
-        }
-
-        #landing h1 {
-            color: #61dafb;
-            font-size: 2.2em;
+            gap: 28px;
+            padding: 24px;
             text-align: center;
         }
 
-        #landing p {
-            color: #aaa;
-            font-size: 1em;
+        .landing-title {
+            font-size: clamp(2em, 9vw, 4em);
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            background: linear-gradient(135deg, #00f5ff 0%, #aa66ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 20px #00f5ff88);
+            line-height: 1.1;
         }
 
-        .landing-cards {
-            display: flex;
-            gap: 24px;
-            flex-wrap: wrap;
-            justify-content: center;
+        .landing-sub {
+            font-size: clamp(0.72em, 2vw, 0.92em);
+            color: #2a2a45;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-top: -18px;
         }
 
-        .landing-card {
-            background: #16213e;
-            border: 2px solid #0f3460;
-            border-radius: 16px;
-            padding: 36px 40px;
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            width: 100%;
+            max-width: 680px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.028);
+            border: 1px solid rgba(0,245,255,0.1);
+            border-radius: 20px;
+            padding: 32px 22px 28px;
             cursor: pointer;
             text-align: center;
-            transition: all 0.25s;
-            min-width: 200px;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+            transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s, background 0.25s;
+            position: relative;
+            overflow: hidden;
+            user-select: none;
         }
+
+        .card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            background: radial-gradient(ellipse at 50% 0%, var(--c, #00f5ff) 0%, transparent 65%);
+        }
+
+        .card:hover::after, .card:active::after { opacity: 0.07; }
+
+        .card:hover {
+            border-color: var(--c, #00f5ff);
+            transform: translateY(-6px) scale(1.01);
+            box-shadow: 0 14px 45px rgba(0,0,0,0.4), 0 0 30px var(--cs, rgba(0,245,255,0.12));
+            background: rgba(255,255,255,0.05);
+        }
+
+        .card:active { transform: translateY(-2px); }
+
+        .card-badge {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: var(--c, #00f5ff);
+            color: #08080f;
+            font-size: 0.58em;
+            font-weight: 800;
+            padding: 3px 9px;
+            border-radius: 100px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .card-icon {
+            font-size: 3em;
+            margin-bottom: 14px;
+            display: block;
+            filter: drop-shadow(0 0 10px var(--c, #00f5ff));
+        }
+
+        .card-title {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: var(--c, #00f5ff);
+            margin-bottom: 7px;
+            letter-spacing: 0.03em;
+        }
+
+        .card-sub {
+            font-size: 0.77em;
+            color: #2d2d50;
+            line-height: 1.6;
+        }
+
+        .blue   { --c: #00f5ff; --cs: rgba(0,245,255,0.12); }
+        .purple { --c: #aa66ff; --cs: rgba(170,102,255,0.12); }
 
         @media (max-width: 480px) {
-            .landing-card { padding: 20px 24px; min-width: 0; width: 100%; max-width: 320px; }
-            .landing-cards { flex-direction: column; align-items: center; gap: 14px; }
-            #landing h1 { font-size: 1.6em; }
+            .card-grid { grid-template-columns: 1fr; max-width: 320px; }
+            .card { padding: 24px 18px 20px; }
         }
 
-        .landing-card:hover {
-            border-color: #61dafb;
-            transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(97,218,251,0.25);
+        /* GAME SECTION */
+        #game-section {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            height: 100dvh;
+            position: relative;
+            z-index: 10;
         }
 
-        .landing-card .lc-icon { font-size: 3em; margin-bottom: 12px; }
-        .landing-card .lc-title { font-size: 1.2em; font-weight: bold; color: #61dafb; }
-        .landing-card .lc-sub { font-size: 0.85em; color: #888; margin-top: 6px; }
+        #top-nav {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
+            background: rgba(8,8,15,0.94);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            flex-shrink: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        #top-nav::-webkit-scrollbar { display: none; }
+
+        .nav-home {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 13px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            color: #445566;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8em;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        .nav-home:hover, .nav-home:active {
+            color: #99aabb;
+            background: rgba(255,255,255,0.07);
+            border-color: rgba(255,255,255,0.16);
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255,255,255,0.06);
+            flex-shrink: 0;
+        }
+
+        .game-btn {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 15px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: transparent;
+            color: #334455;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8em;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        .game-btn:hover, .game-btn:active {
+            color: #00f5ff;
+            border-color: rgba(0,245,255,0.22);
+            background: rgba(0,245,255,0.05);
+        }
+        .game-btn.active {
+            color: #00f5ff;
+            border-color: #00f5ff;
+            background: rgba(0,245,255,0.09);
+            box-shadow: 0 0 14px rgba(0,245,255,0.12);
+        }
+
+        #game-frame {
+            flex: 1;
+            width: 100%;
+            border: none;
+            display: block;
+            min-height: 0;
+        }
+
+        /* KVIZ SECTION */
+        #kviz-section {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            height: 100dvh;
+            position: relative;
+            z-index: 10;
+        }
+
+        #kviz-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            background: rgba(8,8,15,0.94);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            flex-shrink: 0;
+        }
+
+        .kviz-label {
+            flex: 1;
+            font-size: 0.84em;
+            font-weight: 700;
+            color: #aa66ff;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
 
-    <!-- LANDING KÉPERNYŐ -->
-    <div id="landing">
-        <h1>Hobbi cuccok</h1>
-        <p>Válassz egy szekciót!</p>
-        <div class="landing-cards">
-            <div class="landing-card" onclick="openSection('games')">
-                <div class="lc-icon">🎮</div>
-                <div class="lc-title">Játékok</div>
-                <div class="lc-sub">Snake · Pontösszekötő · AutoTuning</div>
-            </div>
-            <div class="landing-card" onclick="openSection('kviz')">
-                <div class="lc-icon">📚</div>
-                <div class="lc-title">Szakmasztár kérdések</div>
-                <div class="lc-sub">108 kérdés · 300 pont · 4 témakör</div>
-            </div>
+<canvas id="bg-canvas"></canvas>
+
+<!-- LANDING -->
+<div id="landing">
+    <div>
+        <div class="landing-title">SZERIC461</div>
+        <div class="landing-sub">Hobbi projektek &amp; játékok</div>
+    </div>
+
+    <div class="card-grid">
+        <div class="card blue" onclick="openGames()">
+            <div class="card-badge">3 játék</div>
+            <span class="card-icon">🎮</span>
+            <div class="card-title">Játékok</div>
+            <div class="card-sub">Snake · Pontösszekötő<br>Neon Breaker</div>
+        </div>
+        <div class="card purple" onclick="openKviz()">
+            <div class="card-badge">108 kérdés</div>
+            <span class="card-icon">📚</span>
+            <div class="card-title">Szakmasztár Kvíz</div>
+            <div class="card-sub">300 pont · 4 témakör<br>Teszteld a tudásod!</div>
         </div>
     </div>
+</div>
 
-    <!-- JÁTÉK SZEKCIÓ -->
-    <div class="game-selector" id="game-selector" style="display:none">
-        <button onclick="openLanding()" style="background:#333;color:#aaa">🏠 Főmenü</button>
-        <button id="btn-snake" onclick="loadGame('snake.html', 'btn-snake')">🐍 Snake</button>
-        <button id="btn-dots" onclick="loadGame('pontok.html', 'btn-dots')">📍 Pontösszekötő</button>
-        <button id="btn-tuning" onclick="loadGame('autotuning.html', 'btn-tuning')">🚗 AutoTuning</button>
-    </div>
+<!-- GAME SECTION -->
+<div id="game-section">
+    <nav id="top-nav">
+        <button class="nav-home" onclick="goHome()">⌂ Főmenü</button>
+        <div class="nav-divider"></div>
+        <button class="game-btn" id="btn-snake" onclick="loadGame('snake.html','btn-snake')">🐍 Snake</button>
+        <button class="game-btn" id="btn-dots"  onclick="loadGame('pontok.html','btn-dots')">📍 Pontösszekötő</button>
+        <button class="game-btn" id="btn-breaker" onclick="loadGame('breaker.html','btn-breaker')">🧱 Neon Breaker</button>
+    </nav>
+    <iframe id="game-frame" title="Játék" allowfullscreen></iframe>
+</div>
 
-    <iframe id="game-frame" class="game-viewport" style="display:none"></iframe>
+<!-- KVIZ SECTION -->
+<div id="kviz-section">
+    <nav id="kviz-nav">
+        <button class="nav-home" onclick="goHome()">⌂ Főmenü</button>
+        <div class="nav-divider"></div>
+        <span class="kviz-label">📚 Szakmasztár Kvíz</span>
+    </nav>
+    <iframe id="kviz-frame" title="Kvíz" src="" style="flex:1;width:100%;border:none;display:block;min-height:0;"></iframe>
+</div>
 
-    <script>
-        function openSection(section) {
-            document.getElementById('landing').style.display = 'none';
+<!-- ANIMATED BACKGROUND -->
+<script>
+(function(){
+    const cvs = document.getElementById('bg-canvas');
+    const c   = cvs.getContext('2d');
+    let W, H;
+    const STARS = [];
+    const N = 80;
+    function mkStar() {
+        return {
+            x: Math.random() * (window.innerWidth || 800),
+            y: Math.random() * (window.innerHeight || 600),
+            r: Math.random() * 1.1 + 0.2,
+            a: Math.random() * Math.PI * 2,
+            spd: Math.random() * 0.15 + 0.04,
+            op: Math.random() * 0.45 + 0.08,
+            ph: Math.random() * Math.PI * 2,
+        };
+    }
+    function init() {
+        W = cvs.width  = window.innerWidth;
+        H = cvs.height = window.innerHeight;
+        if (!STARS.length) for (let i = 0; i < N; i++) STARS.push(mkStar());
+    }
+    function frame() {
+        c.clearRect(0, 0, W, H);
+        STARS.forEach(s => {
+            s.a  += (Math.random() - 0.5) * 0.014;
+            s.x  += Math.cos(s.a) * s.spd;
+            s.y  += Math.sin(s.a) * s.spd;
+            s.ph += 0.011;
+            if (s.x < -10) s.x = W + 10;
+            if (s.x > W+10) s.x = -10;
+            if (s.y < -10) s.y = H + 10;
+            if (s.y > H+10) s.y = -10;
+            const op = s.op * (0.65 + 0.35 * Math.sin(s.ph));
+            c.beginPath();
+            c.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            c.fillStyle = `rgba(0,210,255,${op})`;
+            c.fill();
+        });
+        requestAnimationFrame(frame);
+    }
+    window.addEventListener('resize', init);
+    init();
+    requestAnimationFrame(frame);
+})();
+</script>
 
-            if (section === 'games') {
-                document.getElementById('game-selector').style.display = 'flex';
-                document.getElementById('game-frame').style.display = 'block';
-                loadGame('snake.html', 'btn-snake');
-            } else {
-                document.getElementById('game-selector').style.display = 'none';
-                document.getElementById('game-frame').style.display = 'block';
-                document.getElementById('game-frame').src = 'kviz.html';
-            }
-        }
+<!-- APP LOGIC -->
+<script>
+    function goHome() {
+        document.getElementById('landing').style.display      = 'flex';
+        document.getElementById('game-section').style.display = 'none';
+        document.getElementById('kviz-section').style.display = 'none';
+        document.getElementById('game-frame').src = '';
+        document.getElementById('kviz-frame').src = '';
+    }
 
-        function openLanding() {
-            document.getElementById('landing').style.display = 'flex';
-            document.getElementById('game-selector').style.display = 'none';
-            document.getElementById('game-frame').style.display = 'none';
-            document.getElementById('game-frame').src = '';
-        }
+    function openGames() {
+        document.getElementById('landing').style.display      = 'none';
+        document.getElementById('kviz-section').style.display = 'none';
+        document.getElementById('game-section').style.display = 'flex';
+        loadGame('snake.html', 'btn-snake');
+    }
 
-        function loadGame(url, btnId) {
-            document.getElementById('game-frame').src = url;
-            const buttons = document.querySelectorAll('.game-selector button');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            document.getElementById(btnId).classList.add('active');
-        }
-    </script>
+    function openKviz() {
+        document.getElementById('landing').style.display      = 'none';
+        document.getElementById('game-section').style.display = 'none';
+        document.getElementById('kviz-section').style.display = 'flex';
+        document.getElementById('kviz-frame').src = 'kviz.html';
+    }
+
+    function loadGame(url, btnId) {
+        document.getElementById('game-frame').src = url;
+        document.querySelectorAll('.game-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(btnId).classList.add('active');
+    }
+</script>
 
 </body>
 </html>
